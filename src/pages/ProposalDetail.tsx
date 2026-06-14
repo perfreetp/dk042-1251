@@ -1,0 +1,339 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ThumbsUp,
+  Eye,
+  EyeOff,
+  Share2,
+  MessageSquare,
+  Clock,
+  User,
+  Calendar,
+  ArrowLeft,
+  Send,
+  Target,
+  Briefcase,
+  TrendingUp,
+  Pin,
+} from 'lucide-react';
+import { useStore } from '../store/useStore.ts';
+import { STATUS_LABELS, STATUS_COLORS } from '../../shared/index.ts';
+import { cn } from '../lib/utils.ts';
+
+export default function ProposalDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { currentProposal, loading, fetchProposal, vote, unvote, toggleWatch, addComment, user } = useStore();
+  const [comment, setComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchProposal(id);
+    }
+  }, [id, fetchProposal]);
+
+  const handleVote = async () => {
+    if (!id || !user || user.type === 'visitor') return;
+    if (currentProposal?.hasVoted) {
+      await unvote(id);
+    } else {
+      await vote(id);
+    }
+  };
+
+  const handleWatch = async () => {
+    if (!id || !user || user.type === 'visitor') return;
+    await toggleWatch(id);
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !comment.trim() || !user || user.type === 'visitor') return;
+    
+    setSubmittingComment(true);
+    const success = await addComment(id, comment.trim());
+    if (success) {
+      setComment('');
+    }
+    setSubmittingComment(false);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 pt-24">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-slate-800 rounded w-1/4" />
+            <div className="h-10 bg-slate-800 rounded w-3/4" />
+            <div className="h-32 bg-slate-800 rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentProposal) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 pt-24">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-16">
+          <h2 className="text-2xl font-bold text-white mb-4">提案不存在</h2>
+          <button
+            onClick={() => navigate('/')}
+            className="text-sky-400 hover:text-sky-300"
+          >
+            返回路线图
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const maxVotes = 500;
+  const progress = Math.min((currentProposal.votes / maxVotes) * 100, 100);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+      <div className="pt-24 pb-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
+          >
+            <ArrowLeft size={18} />
+            返回路线图
+          </button>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 md:p-8">
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border',
+                      STATUS_COLORS[currentProposal.status]
+                    )}
+                  >
+                    {STATUS_LABELS[currentProposal.status]}
+                  </span>
+                  {currentProposal.pinned && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-sm font-medium border border-amber-500/20">
+                      <Pin size={14} />
+                      置顶
+                    </span>
+                  )}
+                  {currentProposal.recentVotes > 0 && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-medium">
+                      <TrendingUp size={14} />
+                      近期 +{currentProposal.recentVotes}
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                  {currentProposal.title}
+                </h1>
+
+                <div className="flex items-center gap-6 text-sm text-slate-400 mb-6 pb-6 border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={currentProposal.author.avatar}
+                      alt={currentProposal.author.name}
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <span>{currentProposal.author.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar size={14} />
+                    {formatDate(currentProposal.createdAt)}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <Target size={18} className="text-sky-400" />
+                      功能说明
+                    </h3>
+                    <p className="text-slate-300 leading-relaxed">
+                      {currentProposal.description}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <Briefcase size={18} className="text-amber-400" />
+                      适用场景
+                    </h3>
+                    <ul className="space-y-2">
+                      {currentProposal.useCases.map((uc, i) => (
+                        <li key={i} className="flex items-start gap-3 text-slate-300">
+                          <span className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center text-sm font-medium flex-shrink-0 mt-0.5">
+                            {i + 1}
+                          </span>
+                          {uc}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                    <Clock size={20} className="text-slate-400" />
+                    <div>
+                      <p className="text-sm text-slate-400">预计工作量</p>
+                      <p className="text-white font-medium">{currentProposal.estimatedWork}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 md:p-8">
+                <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-sky-400" />
+                  评论区 ({currentProposal.comments.length})
+                </h3>
+
+                {user && user.type !== 'visitor' ? (
+                  <form onSubmit={handleSubmitComment} className="mb-6">
+                    <div className="flex gap-3">
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="w-10 h-10 rounded-full flex-shrink-0"
+                      />
+                      <div className="flex-1">
+                        <textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="分享您的想法..."
+                          className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 resize-none transition-all"
+                          rows={3}
+                        />
+                        <div className="flex justify-end mt-2">
+                          <button
+                            type="submit"
+                            disabled={!comment.trim() || submittingComment}
+                            className="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Send size={14} />
+                            发表评论
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mb-6 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 text-center">
+                    <p className="text-slate-400 text-sm">请先登录后发表评论</p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {currentProposal.comments.length > 0 ? (
+                    currentProposal.comments.map((c) => (
+                      <div key={c.id} className="flex gap-3">
+                        <img
+                          src={c.user.avatar}
+                          alt={c.user.name}
+                          className="w-10 h-10 rounded-full flex-shrink-0"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-white font-medium text-sm">
+                              {c.user.name}
+                            </span>
+                            <span className="text-slate-500 text-xs">
+                              {formatDate(c.createdAt)}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 text-sm">{c.content}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <MessageSquare className="text-slate-600 mx-auto mb-2" size={32} />
+                      <p className="text-slate-500 text-sm">暂无评论，来发表第一条评论吧</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 sticky top-24">
+                <div className="text-center mb-6">
+                  <div className="text-5xl font-bold text-white mb-2 font-mono">
+                    {currentProposal.votes}
+                  </div>
+                  <p className="text-slate-400 text-sm">社区投票</p>
+                </div>
+
+                <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden mb-6">
+                  <div
+                    className="h-full bg-gradient-to-r from-sky-500 to-blue-500 rounded-full transition-all duration-700"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={handleVote}
+                    disabled={
+                      currentProposal.status === 'completed' ||
+                      currentProposal.status === 'rejected' ||
+                      !user ||
+                      user.type === 'visitor'
+                    }
+                    className={cn(
+                      'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-base font-semibold transition-all',
+                      currentProposal.hasVoted
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                        : currentProposal.status === 'completed' || currentProposal.status === 'rejected'
+                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-sky-500 to-blue-600 text-white hover:from-sky-400 hover:to-blue-500 shadow-lg shadow-sky-500/25 hover:shadow-xl hover:shadow-sky-500/30 hover:scale-[1.02] active:scale-[0.98]'
+                    )}
+                  >
+                    <ThumbsUp size={18} />
+                    {currentProposal.hasVoted ? '已投票，点击撤回' : '投上一票'}
+                  </button>
+
+                  <button
+                    onClick={handleWatch}
+                    disabled={!user || user.type === 'visitor'}
+                    className={cn(
+                      'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-base font-medium transition-all border',
+                      currentProposal.isWatching
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white'
+                    )}
+                  >
+                    {currentProposal.isWatching ? (
+                      <><Eye size={18} /> 已关注</>
+                    ) : (
+                      <><EyeOff size={18} /> 关注提案</>
+                    )}
+                    <span className="text-sm">({currentProposal.watchers})</span>
+                  </button>
+
+                  <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-base font-medium transition-all border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <Share2 size={18} />
+                    分享
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
