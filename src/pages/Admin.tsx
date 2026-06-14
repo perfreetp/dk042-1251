@@ -16,13 +16,20 @@ import {
   Sparkles,
   CheckCircle2,
   Send,
+  Bell,
+  Info,
+  AlertTriangle,
+  Star,
+  ToggleLeft,
+  ToggleRight,
+  Edit,
 } from 'lucide-react';
-import type { Proposal, ProposalStatus, VotingCycle } from '../../shared/index.ts';
+import type { Proposal, ProposalStatus, VotingCycle, Announcement, AnnouncementType } from '../../shared/index.ts';
 import { api } from '../services/api.ts';
 import { STATUS_LABELS } from '../../shared/index.ts';
 import { cn } from '../lib/utils.ts';
 
-type TabType = 'overview' | 'proposals' | 'cycles' | 'changelog';
+type TabType = 'overview' | 'proposals' | 'cycles' | 'changelog' | 'announcements';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -30,10 +37,13 @@ export default function Admin() {
   const [stats, setStats] = useState<any>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [cycles, setCycles] = useState<VotingCycle[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposals, setSelectedProposals] = useState<string[]>([]);
   const [mergeTarget, setMergeTarget] = useState<string>('');
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
 
   const [newCycle, setNewCycle] = useState({
     name: '',
@@ -51,6 +61,13 @@ export default function Admin() {
     status: 'completed' as 'completed' | 'partial' | 'rejected',
   });
 
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: '',
+    content: '',
+    type: 'info' as AnnouncementType,
+    pinned: false,
+  });
+
   useEffect(() => {
     const userId = localStorage.getItem('userId');
     if (userId !== 'u1') {
@@ -63,14 +80,16 @@ export default function Admin() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, proposalsRes, cyclesRes] = await Promise.all([
+      const [statsRes, proposalsRes, cyclesRes, announcementsRes] = await Promise.all([
         api.getAdminStats(),
         api.getProposals({ sortBy: 'votes' }),
         api.getVotingCycles(),
+        api.getAdminAnnouncements(),
       ]);
       setStats(statsRes.data);
       setProposals(proposalsRes.data.proposals);
       setCycles(cyclesRes.data);
+      setAnnouncements(announcementsRes.data);
     } catch (err) {
       console.error('Failed to load admin data:', err);
     }
@@ -150,9 +169,63 @@ export default function Admin() {
     );
   };
 
+  const handleCreateAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingAnnouncement) {
+        await api.updateAnnouncement({
+          id: editingAnnouncement.id,
+          ...newAnnouncement,
+        });
+      } else {
+        await api.createAnnouncement(newAnnouncement);
+      }
+      setNewAnnouncement({ title: '', content: '', type: 'info', pinned: false });
+      setShowAnnouncementForm(false);
+      setEditingAnnouncement(null);
+      loadData();
+    } catch (err) {
+      console.error('Failed to create/update announcement:', err);
+    }
+  };
+
+  const handleToggleAnnouncementActive = async (id: string, active: boolean) => {
+    try {
+      await api.updateAnnouncement({ id, active });
+      setAnnouncements(prev => prev.map(a =>
+        a.id === id ? { ...a, active } : a
+      ));
+    } catch (err) {
+      console.error('Failed to toggle announcement:', err);
+    }
+  };
+
+  const handleToggleAnnouncementPinned = async (id: string, pinned: boolean) => {
+    try {
+      await api.updateAnnouncement({ id, pinned });
+      setAnnouncements(prev => prev.map(a =>
+        a.id === id ? { ...a, pinned } : a
+      ));
+    } catch (err) {
+      console.error('Failed to pin announcement:', err);
+    }
+  };
+
+  const handleEditAnnouncement = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    setNewAnnouncement({
+      title: announcement.title,
+      content: announcement.content,
+      type: announcement.type,
+      pinned: announcement.pinned,
+    });
+    setShowAnnouncementForm(true);
+  };
+
   const tabs = [
     { id: 'overview', label: '概览', icon: BarChart3 },
     { id: 'proposals', label: '提案管理', icon: FileText },
+    { id: 'announcements', label: '公告管理', icon: Bell },
     { id: 'cycles', label: '投票周期', icon: Calendar },
     { id: 'changelog', label: '发布日志', icon: Send },
   ];
@@ -348,6 +421,192 @@ export default function Admin() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'announcements' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-white">公告管理</h2>
+                <button
+                  onClick={() => {
+                    setEditingAnnouncement(null);
+                    setNewAnnouncement({ title: '', content: '', type: 'info', pinned: false });
+                    setShowAnnouncementForm(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-sky-500/10 text-sky-400 rounded-lg text-sm font-medium hover:bg-sky-500/20 transition-colors"
+                >
+                  <PlusCircle size={16} />
+                  发布公告
+                </button>
+              </div>
+
+              {showAnnouncementForm && (
+                <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 mb-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Bell size={18} className="text-sky-400" />
+                    {editingAnnouncement ? '编辑公告' : '发布新公告'}
+                  </h3>
+                  <form onSubmit={handleCreateAnnouncement} className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">标题</label>
+                      <input
+                        type="text"
+                        value={newAnnouncement.title}
+                        onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
+                        placeholder="公告标题"
+                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">内容</label>
+                      <textarea
+                        value={newAnnouncement.content}
+                        onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
+                        rows={4}
+                        placeholder="公告详细内容..."
+                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">类型</label>
+                        <select
+                          value={newAnnouncement.type}
+                          onChange={(e) => setNewAnnouncement({ ...newAnnouncement, type: e.target.value as AnnouncementType })}
+                          className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-sky-500"
+                        >
+                          <option value="info">信息</option>
+                          <option value="warning">警告</option>
+                          <option value="success">成功</option>
+                          <option value="important">重要</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={newAnnouncement.pinned}
+                            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, pinned: e.target.checked })}
+                            className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-sky-500 focus:ring-sky-500"
+                          />
+                          <span className="text-sm text-slate-400">置顶公告</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg font-medium hover:from-sky-400 hover:to-blue-500 transition-all"
+                      >
+                        {editingAnnouncement ? '保存修改' : '发布公告'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAnnouncementForm(false);
+                          setEditingAnnouncement(null);
+                        }}
+                        className="px-6 py-2.5 bg-slate-700 text-slate-300 rounded-lg font-medium hover:bg-slate-600 transition-colors"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {announcements.length === 0 ? (
+                  <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-12 text-center">
+                    <Bell size={40} className="text-slate-600 mx-auto mb-4" />
+                    <p className="text-slate-400">暂无公告</p>
+                  </div>
+                ) : (
+                  announcements.map((announcement) => {
+                    const typeConfig = {
+                      info: { icon: Info, color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+                      warning: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+                      success: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                      important: { icon: Star, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+                    }[announcement.type];
+                    const TypeIcon = typeConfig.icon;
+
+                    return (
+                      <div
+                        key={announcement.id}
+                        className={cn(
+                          'bg-slate-800/50 rounded-2xl border p-5 transition-all',
+                          announcement.active ? typeConfig.border : 'border-slate-700/50 opacity-60'
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div className={cn('p-2 rounded-xl', typeConfig.bg)}>
+                              <TypeIcon size={20} className={typeConfig.color} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold text-white">{announcement.title}</h4>
+                                {announcement.pinned && (
+                                  <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded flex items-center gap-1">
+                                    <Pin size={10} />
+                                    置顶
+                                  </span>
+                                )}
+                                {!announcement.active && (
+                                  <span className="px-1.5 py-0.5 bg-slate-600/50 text-slate-400 text-[10px] font-medium rounded">
+                                    已下线
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-400 text-sm mb-2 line-clamp-2">{announcement.content}</p>
+                              <p className="text-xs text-slate-500">
+                                发布于 {new Date(announcement.createdAt).toLocaleDateString('zh-CN')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditAnnouncement(announcement)}
+                              className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
+                              title="编辑"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleToggleAnnouncementPinned(announcement.id, !announcement.pinned)}
+                              className={cn(
+                                'p-2 rounded-lg transition-colors',
+                                announcement.pinned
+                                  ? 'text-amber-400 bg-amber-500/10'
+                                  : 'text-slate-500 hover:text-amber-400 hover:bg-slate-700'
+                              )}
+                              title={announcement.pinned ? '取消置顶' : '置顶'}
+                            >
+                              <Pin size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleToggleAnnouncementActive(announcement.id, !announcement.active)}
+                              className={cn(
+                                'p-2 rounded-lg transition-colors',
+                                announcement.active
+                                  ? 'text-emerald-400'
+                                  : 'text-slate-500 hover:text-slate-400'
+                              )}
+                              title={announcement.active ? '下线公告' : '上线公告'}
+                            >
+                              {announcement.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

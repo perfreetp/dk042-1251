@@ -2,10 +2,14 @@ import type {
   User,
   Proposal,
   ChangelogEntry,
+  ChangelogEntryWithProposals,
   VotingCycle,
   VoteRecord,
   Comment,
   WatchRecord,
+  Announcement,
+  AnnouncementType,
+  RelatedProposalInfo,
 } from '../../../shared/index.ts';
 
 export const mockUsers: User[] = [
@@ -118,8 +122,8 @@ export const mockProposals: Proposal[] = [
     votes: 145,
     recentVotes: 56,
     watchers: 98,
-    authorId: 'u4',
-    author: mockUsers[3],
+    authorId: 'u1',
+    author: mockUsers[0],
     comments: [],
     createdAt: '2026-06-10T11:30:00Z',
     updatedAt: '2026-06-14T20:00:00Z',
@@ -140,8 +144,8 @@ export const mockProposals: Proposal[] = [
     votes: 478,
     recentVotes: 0,
     watchers: 156,
-    authorId: 'u2',
-    author: mockUsers[1],
+    authorId: 'u1',
+    author: mockUsers[0],
     comments: [],
     createdAt: '2026-04-20T08:00:00Z',
     updatedAt: '2026-06-05T14:00:00Z',
@@ -272,17 +276,190 @@ export const mockVotingCycles: VotingCycle[] = [
   },
 ];
 
+export const mockAnnouncements: Announcement[] = [
+  {
+    id: 'a1',
+    title: '2026 Q3 路线图投票正式开启',
+    content: '第三季度开发路线图投票已正式开始！欢迎大家为心仪的功能投票，投票截止时间为 6 月 30 日。得票最高的 3 个功能将优先进入开发阶段。',
+    type: 'important',
+    pinned: true,
+    active: true,
+    authorId: 'u1',
+    author: mockUsers[0],
+    createdAt: '2026-06-01T00:00:00Z',
+    updatedAt: '2026-06-01T00:00:00Z',
+  },
+  {
+    id: 'a2',
+    title: '关于提案合并的说明',
+    content: '为了避免重复提案，维护者会将相似的提案进行合并。合并后，原始提案的所有票数、关注数和评论都会被保留并计入主提案。您可以在被合并的提案页面查看合并去向。',
+    type: 'info',
+    pinned: true,
+    active: true,
+    authorId: 'u1',
+    author: mockUsers[0],
+    createdAt: '2026-05-20T10:00:00Z',
+    updatedAt: '2026-06-10T14:30:00Z',
+  },
+  {
+    id: 'a3',
+    title: '投票规则更新',
+    content: '自即日起，每位用户对每个提案只能投一票。您可以随时撤票后重新投票。近期增长数据统计最近 7 天的新增票数。',
+    type: 'warning',
+    pinned: false,
+    active: true,
+    authorId: 'u1',
+    author: mockUsers[0],
+    createdAt: '2026-05-15T09:00:00Z',
+    updatedAt: '2026-05-15T09:00:00Z',
+  },
+  {
+    id: 'a4',
+    title: '维护者招募',
+    content: '项目正在招募新的维护者！如果您对项目有深入了解并有志于推动社区发展，欢迎联系我们。',
+    type: 'success',
+    pinned: false,
+    active: false,
+    authorId: 'u1',
+    author: mockUsers[0],
+    createdAt: '2026-04-10T00:00:00Z',
+    updatedAt: '2026-05-01T00:00:00Z',
+  },
+];
+
 let proposals = [...mockProposals];
 let votes = [...mockVotes];
 let watches = [...mockWatches];
 let comments = [...mockComments];
+let announcements = [...mockAnnouncements];
 
-export const getProposals = () => proposals;
+export const getProposals = (params?: {
+  status?: string;
+  sortBy?: string;
+  userType?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  let result = [...proposals];
+
+  if (params?.status && params.status !== 'all') {
+    result = result.filter(p => p.status === params.status);
+  }
+
+  if (params?.userType && params.userType !== 'all') {
+    result = result.filter(p => p.author.type === params.userType);
+  }
+
+  if (params?.sortBy) {
+    switch (params.sortBy) {
+      case 'votes':
+        result.sort((a, b) => b.votes - a.votes);
+        break;
+      case 'recent':
+        result.sort((a, b) => b.recentVotes - a.recentVotes);
+        break;
+      case 'newest':
+        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+    }
+  }
+
+  const pinned = result.filter(p => p.pinned);
+  const others = result.filter(p => !p.pinned);
+  result = [...pinned, ...others];
+
+  const total = result.length;
+
+  if (params?.page && params?.limit) {
+    const start = (params.page - 1) * params.limit;
+    result = result.slice(start, start + params.limit);
+  }
+
+  return { proposals: result, total, page: params?.page || 1, limit: params?.limit || total };
+};
+
 export const getProposalById = (id: string) => proposals.find(p => p.id === id);
 export const getUsers = () => mockUsers;
 export const getUserById = (id: string) => mockUsers.find(u => u.id === id);
-export const getChangelogs = () => mockChangelogs;
+export const getChangelogs = (): ChangelogEntryWithProposals[] => {
+  return mockChangelogs.map(entry => ({
+    ...entry,
+    relatedProposalDetails: entry.relatedProposals
+      .map(id => {
+        const proposal = proposals.find(p => p.id === id);
+        if (!proposal) return null;
+        return {
+          id: proposal.id,
+          title: proposal.title,
+          votes: proposal.votes,
+          status: proposal.status,
+        } as RelatedProposalInfo;
+      })
+      .filter(Boolean) as RelatedProposalInfo[],
+  }));
+};
 export const getVotingCycles = () => mockVotingCycles;
+
+export const getActiveAnnouncements = () => {
+  const active = announcements.filter(a => a.active);
+  const pinned = active.filter(a => a.pinned);
+  const others = active.filter(a => !a.pinned);
+  return [...pinned.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+          ...others.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())];
+};
+
+export const getAllAnnouncements = () => {
+  return [...announcements].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const getAnnouncementById = (id: string) => announcements.find(a => a.id === id);
+
+export const createAnnouncement = (data: {
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  pinned?: boolean;
+  authorId: string;
+}) => {
+  const author = mockUsers.find(u => u.id === data.authorId);
+  if (!author) return null;
+
+  const newAnnouncement: Announcement = {
+    id: `a${Date.now()}`,
+    title: data.title,
+    content: data.content,
+    type: data.type,
+    pinned: data.pinned || false,
+    active: true,
+    authorId: data.authorId,
+    author,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  announcements.unshift(newAnnouncement);
+  return newAnnouncement;
+};
+
+export const updateAnnouncement = (id: string, data: {
+  title?: string;
+  content?: string;
+  type?: AnnouncementType;
+  pinned?: boolean;
+  active?: boolean;
+}) => {
+  const announcement = announcements.find(a => a.id === id);
+  if (!announcement) return null;
+
+  if (data.title !== undefined) announcement.title = data.title;
+  if (data.content !== undefined) announcement.content = data.content;
+  if (data.type !== undefined) announcement.type = data.type;
+  if (data.pinned !== undefined) announcement.pinned = data.pinned;
+  if (data.active !== undefined) announcement.active = data.active;
+  announcement.updatedAt = new Date().toISOString();
+
+  return announcement;
+};
 
 export const addVote = (proposalId: string, userId: string) => {
   const existingVote = votes.find(v => v.proposalId === proposalId && v.userId === userId);
@@ -433,21 +610,83 @@ export const pinProposal = (proposalId: string, pinned: boolean) => {
 export const mergeProposals = (targetId: string, sourceIds: string[]) => {
   const target = proposals.find(p => p.id === targetId);
   if (!target) return null;
-  
-  const sources = proposals.filter(p => sourceIds.includes(p.id));
-  
-  target.votes += sources.reduce((sum, s) => sum + s.votes, 0);
-  target.recentVotes += sources.reduce((sum, s) => sum + s.recentVotes, 0);
-  target.watchers += sources.reduce((sum, s) => sum + s.watchers, 0);
-  target.mergedFrom = [...(target.mergedFrom || []), ...sourceIds];
+
+  const validSourceIds = sourceIds.filter(id => id !== targetId);
+  const sources = proposals.filter(p => validSourceIds.includes(p.id) && !p.mergedTo);
+
+  const sourceVoteUserIds = new Set<string>();
+  const sourceWatchUserIds = new Set<string>();
+  const sourceComments: Comment[] = [];
+
+  sources.forEach(s => {
+    votes.filter(v => v.proposalId === s.id).forEach(v => {
+      sourceVoteUserIds.add(v.userId);
+    });
+    watches.filter(w => w.proposalId === s.id).forEach(w => {
+      sourceWatchUserIds.add(w.userId);
+    });
+    sourceComments.push(...s.comments);
+  });
+
+  const targetVoteUserIds = new Set(
+    votes.filter(v => v.proposalId === targetId).map(v => v.userId)
+  );
+  const targetWatchUserIds = new Set(
+    watches.filter(w => w.proposalId === targetId).map(w => w.userId)
+  );
+
+  const newVotes = [...sourceVoteUserIds].filter(uid => !targetVoteUserIds.has(uid));
+  const newWatches = [...sourceWatchUserIds].filter(uid => !targetWatchUserIds.has(uid));
+
+  newVotes.forEach(userId => {
+    const newVote: VoteRecord = {
+      id: `v${Date.now()}-${userId}`,
+      proposalId: targetId,
+      userId,
+      votedAt: new Date().toISOString(),
+    };
+    votes.push(newVote);
+    target.votes += 1;
+    target.recentVotes += 1;
+  });
+
+  newWatches.forEach(userId => {
+    const newWatch: WatchRecord = {
+      id: `w${Date.now()}-${userId}`,
+      proposalId: targetId,
+      userId,
+      createdAt: new Date().toISOString(),
+    };
+    watches.push(newWatch);
+    target.watchers += 1;
+  });
+
+  const mergedComments = sourceComments.map(c => ({
+    ...c,
+    id: `cm-merged-${c.id}`,
+  }));
+  target.comments = [...target.comments, ...mergedComments];
+
+  target.mergedFrom = [...(target.mergedFrom || []), ...validSourceIds];
   target.updatedAt = new Date().toISOString();
-  
+
   sources.forEach(s => {
     s.status = 'rejected';
+    s.mergedTo = targetId;
     s.updatedAt = new Date().toISOString();
   });
-  
-  return target;
+
+  return {
+    target,
+    mergedSources: sources,
+    stats: {
+      newVotes: newVotes.length,
+      newWatches: newWatches.length,
+      newComments: mergedComments.length,
+      duplicateVotes: sourceVoteUserIds.size - newVotes.length,
+      duplicateWatches: sourceWatchUserIds.size - newWatches.length,
+    },
+  };
 };
 
 export const createVotingCycle = (data: {

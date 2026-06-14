@@ -10,14 +10,15 @@ import Admin from "@/pages/Admin";
 import { useStore } from "@/store/useStore";
 
 export default function App() {
-  const { initUser, fetchProposals, fetchChangelog, fetchVotingCycles } = useStore();
+  const { initUser, fetchProposals, fetchChangelog, fetchVotingCycles, fetchAnnouncements } = useStore();
 
   useEffect(() => {
     initUser();
     fetchProposals();
     fetchChangelog();
     fetchVotingCycles();
-  }, [initUser, fetchProposals, fetchChangelog, fetchVotingCycles]);
+    fetchAnnouncements();
+  }, [initUser, fetchProposals, fetchChangelog, fetchVotingCycles, fetchAnnouncements]);
 
   return (
     <Router>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ThumbsUp,
   Eye,
@@ -15,15 +15,18 @@ import {
   Briefcase,
   TrendingUp,
   Pin,
+  GitMerge,
+  ExternalLink,
 } from 'lucide-react';
 import { useStore } from '../store/useStore.ts';
 import { STATUS_LABELS, STATUS_COLORS } from '../../shared/index.ts';
 import { cn } from '../lib/utils.ts';
+import AnnouncementBar from '../components/AnnouncementBar.tsx';
 
 export default function ProposalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentProposal, loading, fetchProposal, vote, unvote, toggleWatch, addComment, user } = useStore();
+  const { currentProposal, proposals, loading, fetchProposal, vote, unvote, toggleWatch, addComment, user } = useStore();
   const [comment, setComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
@@ -112,6 +115,33 @@ export default function ProposalDetail() {
             返回路线图
           </button>
 
+          <AnnouncementBar />
+
+          {currentProposal.mergedTo && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <GitMerge size={16} className="text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-amber-400 font-medium text-sm mb-1">
+                    该提案已合并
+                  </p>
+                  <p className="text-slate-300 text-sm mb-2">
+                    此提案已合并到主提案，您的投票和关注已自动计入。
+                  </p>
+                  <Link
+                    to={`/proposal/${currentProposal.mergedTo}`}
+                    className="inline-flex items-center gap-1 text-sm text-sky-400 hover:text-sky-300 transition-colors"
+                  >
+                    查看主提案
+                    <ExternalLink size={12} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 md:p-8">
@@ -192,6 +222,44 @@ export default function ProposalDetail() {
                       <p className="text-white font-medium">{currentProposal.estimatedWork}</p>
                     </div>
                   </div>
+
+                  {currentProposal.mergedFrom && currentProposal.mergedFrom.length > 0 && (
+                    <div className="p-4 bg-sky-500/5 rounded-xl border border-sky-500/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <GitMerge size={16} className="text-sky-400" />
+                        <h4 className="font-medium text-sky-400 text-sm">合并来源</h4>
+                      </div>
+                      <p className="text-sm text-slate-400 mb-3">
+                        此提案共合并了 {currentProposal.mergedFrom.length} 个相似提案，以下为来源：
+                      </p>
+                      <div className="space-y-2">
+                        {currentProposal.mergedFrom.map((sourceId) => {
+                          const sourceProposal = proposals.find(p => p.id === sourceId);
+                          return (
+                            <Link
+                              key={sourceId}
+                              to={`/proposal/${sourceId}`}
+                              className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-sky-400 text-xs font-mono">{sourceId}</span>
+                                <span className="text-slate-300 text-sm group-hover:text-white transition-colors">
+                                  {sourceProposal?.title || '加载中...'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-slate-500">
+                                <span className="flex items-center gap-1">
+                                  <ThumbsUp size={12} />
+                                  {sourceProposal?.votes || 0} 票
+                                </span>
+                                <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

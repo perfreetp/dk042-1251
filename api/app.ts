@@ -19,6 +19,7 @@ import watchRoutes from './src/routes/watches.ts'
 import userRoutes from './src/routes/user.ts'
 import changelogRoutes from './src/routes/changelog.ts'
 import adminRoutes from './src/routes/admin.ts'
+import announcementRoutes from './src/routes/announcements.ts'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -44,6 +45,7 @@ app.use('/api/watches', watchRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/changelog', changelogRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/announcements', announcementRoutes)
 
 /**
  * health

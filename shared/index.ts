@@ -2,6 +2,7 @@ export type ProposalStatus = 'planning' | 'voting' | 'developing' | 'completed' 
 export type UserType = 'visitor' | 'user' | 'maintainer';
 export type SortBy = 'votes' | 'recent' | 'newest';
 export type ChangelogStatus = 'completed' | 'partial' | 'rejected';
+export type AnnouncementType = 'info' | 'warning' | 'success' | 'important';
 
 export interface User {
   id: string;
@@ -36,6 +37,7 @@ export interface Proposal {
   createdAt: string;
   updatedAt: string;
   mergedFrom?: string[];
+  mergedTo?: string;
   pinned?: boolean;
   votingCycleId?: string;
 }
@@ -72,6 +74,30 @@ export interface VotingCycle {
   endDate: string;
   isActive: boolean;
   description: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  pinned: boolean;
+  active: boolean;
+  authorId: string;
+  author: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RelatedProposalInfo {
+  id: string;
+  title: string;
+  votes: number;
+  status: ProposalStatus;
+}
+
+export interface ChangelogEntryWithProposals extends ChangelogEntry {
+  relatedProposalDetails: RelatedProposalInfo[];
 }
 
 export interface ApiResponse<T> {
@@ -129,6 +155,22 @@ export interface CreateChangelogRequest {
   decisions: string;
   relatedProposals: string[];
   status: ChangelogStatus;
+}
+
+export interface CreateAnnouncementRequest {
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  pinned?: boolean;
+}
+
+export interface UpdateAnnouncementRequest {
+  id: string;
+  title?: string;
+  content?: string;
+  type?: AnnouncementType;
+  pinned?: boolean;
+  active?: boolean;
 }
 
 export const STATUS_LABELS: Record<ProposalStatus, string> = {

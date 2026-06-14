@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import type { User, Proposal, ProposalStatus, SortBy, ChangelogEntry, VotingCycle } from '../../shared/index.ts';
+import type {
+  User,
+  Proposal,
+  ProposalStatus,
+  SortBy,
+  ChangelogEntryWithProposals,
+  VotingCycle,
+  Announcement,
+  AnnouncementType,
+} from '../../shared/index.ts';
 import { api } from '../services/api.ts';
 
 interface AppState {
@@ -7,8 +16,9 @@ interface AppState {
   proposals: Proposal[];
   filteredProposals: Proposal[];
   currentProposal: (Proposal & { hasVoted: boolean; isWatching: boolean }) | null;
-  changelogs: ChangelogEntry[];
+  changelogs: ChangelogEntryWithProposals[];
   votingCycles: VotingCycle[];
+  announcements: Announcement[];
   statusFilter: ProposalStatus | 'all';
   sortBy: SortBy;
   loading: boolean;
@@ -16,10 +26,14 @@ interface AppState {
   initUser: () => Promise<void>;
   setUser: (user: User | null) => void;
   logout: () => void;
-  fetchProposals: (status?: ProposalStatus | 'all', sortBy?: SortBy) => Promise<void>;
+  fetchProposals: (status?: ProposalStatus | 'all', sortBy?: SortBy, userType?: string) => Promise<void>;
   fetchProposal: (id: string) => Promise<void>;
   fetchChangelog: () => Promise<void>;
   fetchVotingCycles: () => Promise<void>;
+  fetchAnnouncements: () => Promise<void>;
+  fetchAdminAnnouncements: () => Promise<void>;
+  createAnnouncement: (data: { title: string; content: string; type: AnnouncementType; pinned?: boolean }) => Promise<Announcement | null>;
+  updateAnnouncement: (data: { id: string; title?: string; content?: string; type?: AnnouncementType; pinned?: boolean; active?: boolean }) => Promise<Announcement | null>;
   vote: (proposalId: string) => Promise<boolean>;
   unvote: (proposalId: string) => Promise<boolean>;
   toggleWatch: (proposalId: string) => Promise<boolean>;
@@ -36,6 +50,7 @@ export const useStore = create<AppState>((set, get) => ({
   currentProposal: null,
   changelogs: [],
   votingCycles: [],
+  announcements: [],
   statusFilter: 'all',
   sortBy: 'votes',
   loading: false,
@@ -69,11 +84,13 @@ export const useStore = create<AppState>((set, get) => ({
     localStorage.removeItem('userId');
   },
 
-  fetchProposals: async (status, sortBy) => {
+  fetchProposals: async (status, sortBy, userType) => {
     set({ loading: true, error: null });
     try {
       const currentSort = sortBy || get().sortBy;
-      const params = status && status !== 'all' ? { status, sortBy: currentSort } : { sortBy: currentSort };
+      const params: any = { sortBy: currentSort };
+      if (status && status !== 'all') params.status = status;
+      if (userType && userType !== 'all') params.userType = userType;
       const response = await api.getProposals(params);
       set({
         proposals: response.data.proposals,
@@ -270,6 +287,62 @@ export const useStore = create<AppState>((set, get) => ({
       }
     } catch (err) {
       console.error('Failed to fetch voting cycles:', err);
+    }
+  },
+
+  fetchAnnouncements: async () => {
+    try {
+      const response = await api.getActiveAnnouncements();
+      if (response.success) {
+        set({ announcements: response.data });
+      }
+    } catch (err) {
+      console.error('Failed to fetch announcements:', err);
+    }
+  },
+
+  fetchAdminAnnouncements: async () => {
+    try {
+      const response = await api.getAdminAnnouncements();
+      if (response.success) {
+        set({ announcements: response.data });
+      }
+    } catch (err) {
+      console.error('Failed to fetch admin announcements:', err);
+    }
+  },
+
+  createAnnouncement: async (data) => {
+    try {
+      const response = await api.createAnnouncement(data);
+      if (response.success) {
+        const { announcements } = get();
+        set({ announcements: [response.data, ...announcements] });
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return null;
+    }
+  },
+
+  updateAnnouncement: async (data) => {
+    try {
+      const response = await api.updateAnnouncement(data);
+      if (response.success) {
+        const { announcements } = get();
+        set({
+          announcements: announcements.map(a =>
+            a.id === response.data.id ? response.data : a
+          ),
+        });
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return null;
     }
   },
 }));

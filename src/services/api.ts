@@ -2,6 +2,7 @@ import type {
   Proposal,
   User,
   ChangelogEntry,
+  ChangelogEntryWithProposals,
   VotingCycle,
   Comment,
   ApiResponse,
@@ -9,6 +10,8 @@ import type {
   SubmitProposalRequest,
   SortBy,
   ProposalStatus,
+  Announcement,
+  AnnouncementType,
 } from '../../shared/index.ts';
 
 const API_BASE = '/api';
@@ -137,7 +140,46 @@ export const api = {
     const response = await fetch(`${API_BASE}/changelog`, {
       headers: getHeaders(),
     });
-    return handleResponse<ApiResponse<ChangelogEntry[]>>(response);
+    return handleResponse<ApiResponse<ChangelogEntryWithProposals[]>>(response);
+  },
+
+  getActiveAnnouncements: async () => {
+    const response = await fetch(`${API_BASE}/announcements`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<ApiResponse<Announcement[]>>(response);
+  },
+
+  getAdminAnnouncements: async () => {
+    const response = await fetch(`${API_BASE}/admin/announcements`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<ApiResponse<Announcement[]>>(response);
+  },
+
+  createAnnouncement: async (data: { title: string; content: string; type: AnnouncementType; pinned?: boolean }) => {
+    const response = await fetch(`${API_BASE}/admin/announcement`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<Announcement>>(response);
+  },
+
+  updateAnnouncement: async (data: {
+    id: string;
+    title?: string;
+    content?: string;
+    type?: AnnouncementType;
+    pinned?: boolean;
+    active?: boolean;
+  }) => {
+    const response = await fetch(`${API_BASE}/admin/announcement`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<Announcement>>(response);
   },
 
   getAdminStats: async () => {

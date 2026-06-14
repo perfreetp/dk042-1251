@@ -10,6 +10,7 @@ import { useStore } from '../store/useStore.ts';
 import { ProposalCard } from '../components/ProposalCard.tsx';
 import { StatusFilter } from '../components/StatusFilter.tsx';
 import { SortSelector } from '../components/SortSelector.tsx';
+import AnnouncementBar from '../components/AnnouncementBar.tsx';
 
 export default function Home() {
   const { filteredProposals, loading, fetchProposals, proposals } = useStore();
@@ -93,6 +94,8 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          <AnnouncementBar />
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <StatusFilter />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   GitBranch,
   CheckCircle2,
@@ -7,13 +8,15 @@ import {
   ExternalLink,
   Calendar,
   GitMerge,
+  ThumbsUp,
 } from 'lucide-react';
-import type { ChangelogEntry } from '../../shared/index.ts';
+import type { ChangelogEntryWithProposals, ProposalStatus } from '../../shared/index.ts';
+import { STATUS_LABELS, STATUS_COLORS } from '../../shared/index.ts';
 import { api } from '../services/api.ts';
 import { cn } from '../lib/utils.ts';
 
 export default function Changelog() {
-  const [changelogs, setChangelogs] = useState<ChangelogEntry[]>([]);
+  const [changelogs, setChangelogs] = useState<ChangelogEntryWithProposals[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -148,19 +151,40 @@ export default function Changelog() {
                             </div>
                           </div>
 
-                          {entry.relatedProposals.length > 0 && (
+                          {entry.relatedProposalDetails && entry.relatedProposalDetails.length > 0 && (
                             <div>
-                              <p className="text-xs text-slate-500 mb-2">关联提案：</p>
-                              <div className="flex flex-wrap gap-2">
-                                {entry.relatedProposals.map((pId) => (
-                                  <a
-                                    key={pId}
-                                    href={`/proposal/${pId}`}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-300 text-xs hover:bg-slate-700 hover:text-white transition-colors"
+                              <p className="text-xs text-slate-500 mb-3">关联提案：</p>
+                              <div className="space-y-2">
+                                {entry.relatedProposalDetails.map((proposal) => (
+                                  <Link
+                                    key={proposal.id}
+                                    to={`/proposal/${proposal.id}`}
+                                    className="block p-3 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 transition-all group"
                                   >
-                                    <ExternalLink size={10} />
-                                    {pId}
-                                  </a>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className={cn(
+                                            'px-2 py-0.5 rounded text-[10px] font-medium border',
+                                            STATUS_COLORS[proposal.status as ProposalStatus]
+                                          )}>
+                                            {STATUS_LABELS[proposal.status as ProposalStatus]}
+                                          </span>
+                                          <span className="text-xs text-slate-500 font-mono">
+                                            {proposal.id}
+                                          </span>
+                                        </div>
+                                        <h4 className="text-sm font-medium text-white truncate group-hover:text-sky-400 transition-colors">
+                                          {proposal.title}
+                                        </h4>
+                                      </div>
+                                      <div className="flex items-center gap-1 text-xs text-slate-400 flex-shrink-0">
+                                        <ThumbsUp size={12} className="text-sky-400" />
+                                        <span className="font-mono">{proposal.votes}</span>
+                                        <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                                      </div>
+                                    </div>
+                                  </Link>
                                 ))}
                               </div>
                             </div>
