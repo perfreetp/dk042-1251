@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Trophy,
   Flame,
@@ -9,9 +9,10 @@ import {
   Award,
   GitMerge,
   AlertTriangle,
+  BookOpen,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { SortBy, Proposal, UserType, ProposalStatus } from '../../shared/index.ts';
+import type { SortBy, Proposal, UserType, ProposalStatus, ChangelogEntryWithProposals } from '../../shared/index.ts';
 import { STATUS_LABELS, STATUS_COLORS } from '../../shared/index.ts';
 import { ProposalCard } from '../components/ProposalCard.tsx';
 import { api } from '../services/api.ts';
@@ -38,15 +39,26 @@ export default function Ranking() {
   const persisted = loadPersistedFilters();
 
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [changelogs, setChangelogs] = useState<ChangelogEntryWithProposals[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortBy>(persisted?.sortBy || 'votes');
   const [statusFilter, setStatusFilter] = useState<RankingFilter>(persisted?.statusFilter || 'all');
   const [userFilter, setUserFilter] = useState<UserFilter>(persisted?.userFilter || 'all');
   const [prevStatuses, setPrevStatuses] = useState<Record<string, ProposalStatus>>({});
+  const [loadedOnce, setLoadedOnce] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sortBy, statusFilter, userFilter }));
   }, [sortBy, statusFilter, userFilter]);
+
+  const changelogProposalIds = useMemo(() => {
+    const ids = new Set<string>();
+    changelogs.forEach(c => {
+      c.relatedProposals?.forEach(id => ids.add(id));
+      c.relatedProposalDetails?.forEach(p => ids.add(p.id));
+    });
+    return ids;
+  }, [changelogs]);
 
   const fetchRankings = async () => {
     setLoading(true);
@@ -61,15 +73,37 @@ export default function Ranking() {
       const response = await api.getProposals(params);
       const newProposals = response.data.proposals;
 
-      const newStatuses: Record<string, ProposalStatus> = {};
-      newProposals.forEach(p => {
-        newStatuses[p.id] = p.status;
-      });
+      if (!loadedOnce) {
+        const initial: Record<string, ProposalStatus> = {};
+        newProposals.forEach(p => {
+          initial[p.id] = p.status;
+        });
+        setPrevStatuses(initial);
+        setLoadedOnce(true);
+      } else {
+        setPrevStatuses(prev => {
+          const snapshot: Record<string, ProposalStatus> = {};
+          newProposals.forEach(p => {
+            if (prev[p.id] === undefined) {
+              snapshot[p.id] = p.status;
+            } else {
+              snapshot[p.id] = prev[p.id];
+            }
+          });
+          return snapshot;
+        });
+      }
+
       setProposals(newProposals);
-      setPrevStatuses(prev => {
-        const prevSnapshot = prev;
-        return { ...prevSnapshot };
-      });
+
+      if (changelogs.length === 0) {
+        try {
+          const clRes = await api.getChangelogs();
+          setChangelogs(clRes.data);
+        } catch {
+          // ignore
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch rankings:', err);
     }
@@ -245,6 +279,18 @@ export default function Ranking() {
                             已合并
                           </span>
                         )}
+                        {changelogProposalIds.has(proposal.id) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-medium rounded border border-emerald-500/20">
+                            <BookOpen size={10} />
+                            已发布
+                          </span>
+                        )}
+                        {prevStatuses[proposal.id] && prevStatuses[proposal.id] !== proposal.status && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 text-orange-400 text-[10px] font-medium rounded border border-orange-500/20">
+                            <AlertTriangle size={10} />
+                            {STATUS_LABELS[prevStatuses[proposal.id]]}→{STATUS_LABELS[proposal.status]}
+                          </span>
+                        )}
                         <span className={cn(
                           'px-2 py-0.5 rounded text-[10px] font-medium border',
                           STATUS_COLORS[proposal.status]
@@ -317,10 +363,16 @@ export default function Ranking() {
                               已合并
                             </span>
                           )}
-                          {prevStatuses[proposal.id] && prevStatuses[proposal.id] !== proposal.status && (
+                          {changelogProposalIds.has(proposal.id) && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-medium rounded border border-emerald-500/20 flex-shrink-0">
+                              <BookOpen size={10} />
+                              已发布
+                            </span>
+                          )}
+                          {prevStatuses[proposal.id] && prevStatuses[proposal.id] !== proposal.status && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-orange-500/10 text-orange-400 text-[10px] font-medium rounded border border-orange-500/20 flex-shrink-0">
                               <AlertTriangle size={10} />
-                              状态变化
+                              {STATUS_LABELS[prevStatuses[proposal.id]]}→{STATUS_LABELS[proposal.status]}
                             </span>
                           )}
                         </div>
@@ -341,7 +393,7 @@ export default function Ranking() {
                           )}
                           {proposal.mergedTo && (
                             <span className="text-amber-400 flex items-center gap-1 text-xs">
-                              去向: {proposals.find(p => p.id === proposal.mergedTo)?.title || proposal.mergedTo}
+                              去向: {proposal.mergedToTitle || proposal.mergedTo}
                             </span>
                           )}
                         </div>

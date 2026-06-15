@@ -25,13 +25,29 @@ import {
   Edit,
   Eye,
   LayoutGrid,
+  Clock,
 } from 'lucide-react';
-import type { Proposal, ProposalStatus, VotingCycle, Announcement, AnnouncementType } from '../../shared/index.ts';
+import type { Proposal, ProposalStatus, VotingCycle, Announcement, AnnouncementType, AnnouncementComputedStatus } from '../../shared/index.ts';
 import { api } from '../services/api.ts';
 import { STATUS_LABELS } from '../../shared/index.ts';
 import { cn } from '../lib/utils.ts';
 
 type TabType = 'overview' | 'proposals' | 'cycles' | 'changelog' | 'announcements';
+
+const computeStatus = (a: Announcement): AnnouncementComputedStatus => {
+  if (!a.active) return 'offline';
+  const now = new Date();
+  if (a.effectiveAt && new Date(a.effectiveAt) > now) return 'pending';
+  if (a.expiresAt && new Date(a.expiresAt) < now) return 'expired';
+  return 'active';
+};
+
+const STATUS_STYLES: Record<AnnouncementComputedStatus, { label: string; bg: string; border: string; text: string; icon: typeof CheckCircle2 }> = {
+  active: { label: '生效中', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', icon: CheckCircle2 },
+  pending: { label: '待生效', bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', icon: Clock },
+  expired: { label: '已过期', bg: 'bg-slate-600/50', border: 'border-slate-500/30', text: 'text-slate-400', icon: AlertTriangle },
+  offline: { label: '已下线', bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-400', icon: X },
+};
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -397,7 +413,21 @@ export default function Admin() {
                           <div className="flex items-center gap-3">
                             {proposal.pinned && <Pin size={14} className="text-amber-400" />}
                             <div>
-                              <p className="text-white font-medium text-sm">{proposal.title}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-white font-medium text-sm">{proposal.title}</p>
+                                {proposal.mergedTo && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded border border-amber-500/20 flex-shrink-0">
+                                    <GitMerge size={9} />
+                                    → {proposal.mergedToTitle || proposal.mergedTo}
+                                  </span>
+                                )}
+                                {proposal.mergedFrom && proposal.mergedFrom.length > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-sky-500/10 text-sky-400 text-[10px] font-medium rounded border border-sky-500/20 flex-shrink-0">
+                                    <GitMerge size={9} />
+                                    合入 {proposal.mergedFrom.length}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-slate-500 text-xs">@{proposal.author.name}</p>
                             </div>
                           </div>
@@ -684,13 +714,17 @@ export default function Admin() {
                       important: { icon: Star, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
                     }[announcement.type];
                     const TypeIcon = typeConfig.icon;
+                    const status = computeStatus(announcement);
+                    const statusStyle = STATUS_STYLES[status];
+                    const StatusIcon = statusStyle.icon;
 
                     return (
                       <div
                         key={announcement.id}
                         className={cn(
                           'bg-slate-800/50 rounded-2xl border p-5 transition-all',
-                          announcement.active ? typeConfig.border : 'border-slate-700/50 opacity-60'
+                          status === 'active' ? typeConfig.border : status === 'pending' ? 'border-amber-500/20' : 'border-slate-700/50',
+                          (status === 'expired' || status === 'offline') && 'opacity-60'
                         )}
                       >
                         <div className="flex items-start justify-between gap-4">
@@ -701,15 +735,14 @@ export default function Admin() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <h4 className="font-semibold text-white">{announcement.title}</h4>
+                                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border', statusStyle.bg, statusStyle.text, statusStyle.border)}>
+                                  <StatusIcon size={10} />
+                                  {statusStyle.label}
+                                </span>
                                 {announcement.pinned && (
                                   <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded flex items-center gap-1">
                                     <Pin size={10} />
                                     置顶
-                                  </span>
-                                )}
-                                {!announcement.active && (
-                                  <span className="px-1.5 py-0.5 bg-slate-600/50 text-slate-400 text-[10px] font-medium rounded">
-                                    已下线
                                   </span>
                                 )}
                                 <span className="px-1.5 py-0.5 bg-sky-500/10 text-sky-400 text-[10px] font-medium rounded">
@@ -720,13 +753,13 @@ export default function Admin() {
                               <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                                 <span>发布于 {new Date(announcement.createdAt).toLocaleDateString('zh-CN')}</span>
                                 {announcement.effectiveAt && (
-                                  <span className="text-emerald-400">
-                                    生效: {new Date(announcement.effectiveAt).toLocaleDateString('zh-CN')}
+                                  <span className={status === 'pending' ? 'text-amber-400' : 'text-emerald-400'}>
+                                    生效: {new Date(announcement.effectiveAt).toLocaleString('zh-CN')}
                                   </span>
                                 )}
                                 {announcement.expiresAt && (
-                                  <span className="text-amber-400">
-                                    失效: {new Date(announcement.expiresAt).toLocaleDateString('zh-CN')}
+                                  <span className={status === 'expired' ? 'text-rose-400' : 'text-amber-400'}>
+                                    失效: {new Date(announcement.expiresAt).toLocaleString('zh-CN')}
                                   </span>
                                 )}
                               </div>

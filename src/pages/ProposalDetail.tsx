@@ -141,7 +141,7 @@ export default function ProposalDetail() {
                           {currentProposal.mergedTo}
                         </span>
                         <span className="text-sm text-white font-medium truncate group-hover:text-sky-400 transition-colors">
-                          {proposals.find(p => p.id === currentProposal.mergedTo)?.title || '主提案'}
+                          {currentProposal.mergedToTitle || '主提案'}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500">点击查看主提案详情</p>

@@ -10,6 +10,7 @@ import type {
   Announcement,
   AnnouncementType,
   AnnouncementScope,
+  AnnouncementComputedStatus,
   RelatedProposalInfo,
   MergedSourceInfo,
   MergeAuditRecord,
@@ -242,6 +243,7 @@ export const mockProposals: Proposal[] = [
     createdAt: '2026-06-12T10:00:00Z',
     updatedAt: '2026-06-12T10:00:00Z',
     mergedTo: 'p4',
+    mergedToTitle: '插件市场生态系统',
   },
   {
     id: 'p9',
@@ -263,6 +265,7 @@ export const mockProposals: Proposal[] = [
     createdAt: '2026-06-08T14:00:00Z',
     updatedAt: '2026-06-12T10:00:00Z',
     mergedTo: 'p4',
+    mergedToTitle: '插件市场生态系统',
   },
 ];
 
@@ -879,6 +882,7 @@ export const mergeProposals = (
 
     s.status = 'rejected';
     s.mergedTo = targetId;
+    s.mergedToTitle = target.title;
     s.updatedAt = mergedAt;
   });
 
@@ -917,6 +921,14 @@ export const createVotingCycle = (data: {
   return newCycle;
 };
 
+export const computeAnnouncementStatus = (a: Announcement): AnnouncementComputedStatus => {
+  if (!a.active) return 'offline';
+  const now = new Date();
+  if (a.effectiveAt && new Date(a.effectiveAt) > now) return 'pending';
+  if (a.expiresAt && new Date(a.expiresAt) < now) return 'expired';
+  return 'active';
+};
+
 export const createChangelog = (data: {
   version: string;
   title: string;
@@ -925,7 +937,29 @@ export const createChangelog = (data: {
   relatedProposals: string[];
   status: ChangelogEntry['status'];
 }) => {
-  const newChangelog: ChangelogEntry = {
+  const relatedProposalDetails: RelatedProposalInfo[] = data.relatedProposals
+    .map(pid => {
+      const p = proposals.find(pro => pro.id === pid);
+      if (!p) return null;
+      return {
+        id: p.id,
+        title: p.title,
+        votes: p.votes,
+        status: p.status,
+        watchers: p.watchers,
+        author: p.author.name,
+        decisionNote: p.status === 'completed'
+          ? '已完整落地'
+          : p.status === 'rejected'
+          ? '暂不纳入当前版本'
+          : p.status === 'developing'
+          ? '开发进行中'
+          : '社区投票评估中',
+      } as RelatedProposalInfo;
+    })
+    .filter((d): d is RelatedProposalInfo => d !== null);
+
+  const newChangelog: ChangelogEntryWithProposals = {
     id: `c${Date.now()}`,
     version: data.version,
     title: data.title,
@@ -934,8 +968,9 @@ export const createChangelog = (data: {
     relatedProposals: data.relatedProposals,
     status: data.status,
     releasedAt: new Date().toISOString(),
+    relatedProposalDetails,
   };
   
-  (mockChangelogs as ChangelogEntry[]).unshift(newChangelog);
+  changelogs.unshift(newChangelog);
   return newChangelog;
 };

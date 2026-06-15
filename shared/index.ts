@@ -22,6 +22,8 @@ export interface Comment {
   createdAt: string;
 }
 
+export type AnnouncementComputedStatus = 'active' | 'pending' | 'expired' | 'offline';
+
 export interface Proposal {
   id: string;
   title: string;
@@ -39,6 +41,7 @@ export interface Proposal {
   updatedAt: string;
   mergedFrom?: MergedSourceInfo[];
   mergedTo?: string;
+  mergedToTitle?: string;
   pinned?: boolean;
   votingCycleId?: string;
 }

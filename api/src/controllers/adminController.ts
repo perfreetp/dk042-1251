@@ -12,6 +12,7 @@ import {
   createAnnouncement,
   updateAnnouncement,
   getMergeAudits,
+  computeAnnouncementStatus,
 } from '../repositories/mockData.ts';
 
 export const getStatsHandler = (_req: Request, res: Response) => {
@@ -190,10 +191,15 @@ export const getCyclesHandler = (_req: Request, res: Response) => {
 };
 
 export const getAnnouncementsHandler = (_req: Request, res: Response) => {
+  const announcements = getAllAnnouncements();
+  const withStatus = announcements.map(a => ({
+    ...a,
+    computedStatus: computeAnnouncementStatus(a),
+  }));
   res.json({
     success: true,
     message: '获取成功',
-    data: getAllAnnouncements(),
+    data: withStatus,
   });
 };
 
