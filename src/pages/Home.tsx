@@ -13,11 +13,12 @@ import { SortSelector } from '../components/SortSelector.tsx';
 import AnnouncementBar from '../components/AnnouncementBar.tsx';
 
 export default function Home() {
-  const { filteredProposals, loading, fetchProposals, proposals } = useStore();
+  const { filteredProposals, loading, fetchProposals, fetchAnnouncements, proposals } = useStore();
 
   useEffect(() => {
     fetchProposals();
-  }, [fetchProposals]);
+    fetchAnnouncements('home');
+  }, [fetchProposals, fetchAnnouncements]);
 
   const stats = {
     total: proposals.length,

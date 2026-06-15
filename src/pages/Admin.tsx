@@ -66,6 +66,9 @@ export default function Admin() {
     content: '',
     type: 'info' as AnnouncementType,
     pinned: false,
+    scope: 'all' as 'all' | 'home' | 'proposal_detail',
+    effectiveAt: '',
+    expiresAt: '',
   });
 
   useEffect(() => {
@@ -180,7 +183,7 @@ export default function Admin() {
       } else {
         await api.createAnnouncement(newAnnouncement);
       }
-      setNewAnnouncement({ title: '', content: '', type: 'info', pinned: false });
+      setNewAnnouncement({ title: '', content: '', type: 'info', pinned: false, scope: 'all', effectiveAt: '', expiresAt: '' });
       setShowAnnouncementForm(false);
       setEditingAnnouncement(null);
       loadData();
@@ -218,6 +221,9 @@ export default function Admin() {
       content: announcement.content,
       type: announcement.type,
       pinned: announcement.pinned,
+      scope: announcement.scope,
+      effectiveAt: announcement.effectiveAt || '',
+      expiresAt: announcement.expiresAt || '',
     });
     setShowAnnouncementForm(true);
   };
@@ -432,7 +438,7 @@ export default function Admin() {
                 <button
                   onClick={() => {
                     setEditingAnnouncement(null);
-                    setNewAnnouncement({ title: '', content: '', type: 'info', pinned: false });
+                    setNewAnnouncement({ title: '', content: '', type: 'info', pinned: false, scope: 'all', effectiveAt: '', expiresAt: '' });
                     setShowAnnouncementForm(true);
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-sky-500/10 text-sky-400 rounded-lg text-sm font-medium hover:bg-sky-500/20 transition-colors"
@@ -485,17 +491,53 @@ export default function Admin() {
                           <option value="important">重要</option>
                         </select>
                       </div>
-                      <div className="flex items-end">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={newAnnouncement.pinned}
-                            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, pinned: e.target.checked })}
-                            className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-sky-500 focus:ring-sky-500"
-                          />
-                          <span className="text-sm text-slate-400">置顶公告</span>
-                        </label>
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">展示范围</label>
+                        <select
+                          value={newAnnouncement.scope}
+                          onChange={(e) => setNewAnnouncement({ ...newAnnouncement, scope: e.target.value as 'all' | 'home' | 'proposal_detail' })}
+                          className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-sky-500"
+                        >
+                          <option value="all">全部页面</option>
+                          <option value="home">仅首页</option>
+                          <option value="proposal_detail">仅提案详情</option>
+                        </select>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">
+                          生效时间 <span className="text-slate-600">(可选)</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={newAnnouncement.effectiveAt}
+                          onChange={(e) => setNewAnnouncement({ ...newAnnouncement, effectiveAt: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">
+                          失效时间 <span className="text-slate-600">(可选)</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={newAnnouncement.expiresAt}
+                          onChange={(e) => setNewAnnouncement({ ...newAnnouncement, expiresAt: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newAnnouncement.pinned}
+                          onChange={(e) => setNewAnnouncement({ ...newAnnouncement, pinned: e.target.checked })}
+                          className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-sky-500 focus:ring-sky-500"
+                        />
+                        <span className="text-sm text-slate-400">置顶公告</span>
+                      </label>
                     </div>
                     <div className="flex gap-3">
                       <button
@@ -549,7 +591,7 @@ export default function Admin() {
                               <TypeIcon size={20} className={typeConfig.color} />
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <h4 className="font-semibold text-white">{announcement.title}</h4>
                                 {announcement.pinned && (
                                   <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded flex items-center gap-1">
@@ -562,11 +604,24 @@ export default function Admin() {
                                     已下线
                                   </span>
                                 )}
+                                <span className="px-1.5 py-0.5 bg-sky-500/10 text-sky-400 text-[10px] font-medium rounded">
+                                  {announcement.scope === 'all' ? '全部页面' : announcement.scope === 'home' ? '仅首页' : '仅详情'}
+                                </span>
                               </div>
                               <p className="text-slate-400 text-sm mb-2 line-clamp-2">{announcement.content}</p>
-                              <p className="text-xs text-slate-500">
-                                发布于 {new Date(announcement.createdAt).toLocaleDateString('zh-CN')}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                <span>发布于 {new Date(announcement.createdAt).toLocaleDateString('zh-CN')}</span>
+                                {announcement.effectiveAt && (
+                                  <span className="text-emerald-400">
+                                    生效: {new Date(announcement.effectiveAt).toLocaleDateString('zh-CN')}
+                                  </span>
+                                )}
+                                {announcement.expiresAt && (
+                                  <span className="text-amber-400">
+                                    失效: {new Date(announcement.expiresAt).toLocaleDateString('zh-CN')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

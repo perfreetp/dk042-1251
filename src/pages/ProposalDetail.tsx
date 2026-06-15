@@ -26,15 +26,16 @@ import AnnouncementBar from '../components/AnnouncementBar.tsx';
 export default function ProposalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentProposal, proposals, loading, fetchProposal, vote, unvote, toggleWatch, addComment, user } = useStore();
+  const { currentProposal, proposals, loading, fetchProposal, fetchAnnouncements, vote, unvote, toggleWatch, addComment, user } = useStore();
   const [comment, setComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchProposal(id);
+      fetchAnnouncements('proposal_detail');
     }
-  }, [id, fetchProposal]);
+  }, [id, fetchProposal, fetchAnnouncements]);
 
   const handleVote = async () => {
     if (!id || !user || user.type === 'visitor') return;
@@ -123,19 +124,29 @@ export default function ProposalDetail() {
                 <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                   <GitMerge size={16} className="text-amber-400" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-amber-400 font-medium text-sm mb-1">
                     该提案已合并
                   </p>
-                  <p className="text-slate-300 text-sm mb-2">
+                  <p className="text-slate-300 text-sm mb-3">
                     此提案已合并到主提案，您的投票和关注已自动计入。
                   </p>
                   <Link
                     to={`/proposal/${currentProposal.mergedTo}`}
-                    className="inline-flex items-center gap-1 text-sm text-sky-400 hover:text-sky-300 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-all group"
                   >
-                    查看主提案
-                    <ExternalLink size={12} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sky-400 text-xs font-mono">
+                          {currentProposal.mergedTo}
+                        </span>
+                        <span className="text-sm text-white font-medium truncate group-hover:text-sky-400 transition-colors">
+                          {proposals.find(p => p.id === currentProposal.mergedTo)?.title || '主提案'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">点击查看主提案详情</p>
+                    </div>
+                    <ExternalLink size={12} className="text-slate-500 group-hover:text-sky-400 transition-colors" />
                   </Link>
                 </div>
               </div>
@@ -225,38 +236,55 @@ export default function ProposalDetail() {
 
                   {currentProposal.mergedFrom && currentProposal.mergedFrom.length > 0 && (
                     <div className="p-4 bg-sky-500/5 rounded-xl border border-sky-500/20">
-                      <div className="flex items-center gap-2 mb-3">
-                        <GitMerge size={16} className="text-sky-400" />
-                        <h4 className="font-medium text-sky-400 text-sm">合并来源</h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <GitMerge size={16} className="text-sky-400" />
+                          <h4 className="font-medium text-sky-400 text-sm">合并来源</h4>
+                        </div>
+                        <span className="text-xs text-slate-500">
+                          共 {currentProposal.mergedFrom.length} 个提案并入
+                        </span>
                       </div>
-                      <p className="text-sm text-slate-400 mb-3">
-                        此提案共合并了 {currentProposal.mergedFrom.length} 个相似提案，以下为来源：
+                      <p className="text-sm text-slate-400 mb-4">
+                        以下为合并时的原始数据快照，可清晰追溯各来源贡献
                       </p>
-                      <div className="space-y-2">
-                        {currentProposal.mergedFrom.map((sourceId) => {
-                          const sourceProposal = proposals.find(p => p.id === sourceId);
-                          return (
-                            <Link
-                              key={sourceId}
-                              to={`/proposal/${sourceId}`}
-                              className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors group"
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-sky-400 text-xs font-mono">{sourceId}</span>
-                                <span className="text-slate-300 text-sm group-hover:text-white transition-colors">
-                                  {sourceProposal?.title || '加载中...'}
-                                </span>
+                      <div className="space-y-3">
+                        {currentProposal.mergedFrom.map((source) => (
+                          <Link
+                            key={source.proposalId}
+                            to={`/proposal/${source.proposalId}`}
+                            className="block p-4 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 transition-all group"
+                          >
+                            <div className="flex items-start justify-between gap-4 mb-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sky-400 text-xs font-mono">{source.proposalId}</span>
+                                  <span className="text-xs text-slate-500">
+                                    合并于 {new Date(source.mergedAt).toLocaleDateString('zh-CN')}
+                                  </span>
+                                </div>
+                                <h4 className="text-sm font-medium text-white truncate group-hover:text-sky-400 transition-colors">
+                                  {source.title}
+                                </h4>
                               </div>
-                              <div className="flex items-center gap-3 text-xs text-slate-500">
-                                <span className="flex items-center gap-1">
-                                  <ThumbsUp size={12} />
-                                  {sourceProposal?.votes || 0} 票
-                                </span>
-                                <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ExternalLink size={14} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div className="flex items-center gap-1.5 text-slate-400">
+                                <ThumbsUp size={12} className="text-sky-400" />
+                                <span>原始 {source.originalVotes} 票</span>
                               </div>
-                            </Link>
-                          );
-                        })}
+                              <div className="flex items-center gap-1.5 text-slate-400">
+                                <Eye size={12} className="text-amber-400" />
+                                <span>{source.originalWatchers} 关注</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-slate-400">
+                                <MessageSquare size={12} className="text-emerald-400" />
+                                <span>{source.originalComments} 评论</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
                     </div>
                   )}

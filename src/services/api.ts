@@ -12,6 +12,7 @@ import type {
   ProposalStatus,
   Announcement,
   AnnouncementType,
+  AnnouncementScope,
 } from '../../shared/index.ts';
 
 const API_BASE = '/api';
@@ -40,6 +41,7 @@ export const api = {
     if (params?.userType) searchParams.set('userType', params.userType);
     if (params?.page) searchParams.set('page', String(params.page));
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.respectPinned !== undefined) searchParams.set('respectPinned', String(params.respectPinned));
     
     const response = await fetch(`${API_BASE}/proposals?${searchParams}`, {
       headers: getHeaders(),
@@ -143,8 +145,11 @@ export const api = {
     return handleResponse<ApiResponse<ChangelogEntryWithProposals[]>>(response);
   },
 
-  getActiveAnnouncements: async () => {
-    const response = await fetch(`${API_BASE}/announcements`, {
+  getActiveAnnouncements: async (scope?: 'home' | 'proposal_detail') => {
+    const searchParams = new URLSearchParams();
+    if (scope) searchParams.set('scope', scope);
+    
+    const response = await fetch(`${API_BASE}/announcements?${searchParams}`, {
       headers: getHeaders(),
     });
     return handleResponse<ApiResponse<Announcement[]>>(response);
@@ -157,7 +162,15 @@ export const api = {
     return handleResponse<ApiResponse<Announcement[]>>(response);
   },
 
-  createAnnouncement: async (data: { title: string; content: string; type: AnnouncementType; pinned?: boolean }) => {
+  createAnnouncement: async (data: { 
+    title: string; 
+    content: string; 
+    type: AnnouncementType; 
+    pinned?: boolean;
+    scope?: AnnouncementScope;
+    effectiveAt?: string;
+    expiresAt?: string;
+  }) => {
     const response = await fetch(`${API_BASE}/admin/announcement`, {
       method: 'POST',
       headers: getHeaders(),
@@ -173,6 +186,9 @@ export const api = {
     type?: AnnouncementType;
     pinned?: boolean;
     active?: boolean;
+    scope?: AnnouncementScope;
+    effectiveAt?: string;
+    expiresAt?: string;
   }) => {
     const response = await fetch(`${API_BASE}/admin/announcement`, {
       method: 'PATCH',

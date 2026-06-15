@@ -3,6 +3,7 @@ export type UserType = 'visitor' | 'user' | 'maintainer';
 export type SortBy = 'votes' | 'recent' | 'newest';
 export type ChangelogStatus = 'completed' | 'partial' | 'rejected';
 export type AnnouncementType = 'info' | 'warning' | 'success' | 'important';
+export type AnnouncementScope = 'all' | 'home' | 'proposal_detail';
 
 export interface User {
   id: string;
@@ -36,10 +37,19 @@ export interface Proposal {
   comments: Comment[];
   createdAt: string;
   updatedAt: string;
-  mergedFrom?: string[];
+  mergedFrom?: MergedSourceInfo[];
   mergedTo?: string;
   pinned?: boolean;
   votingCycleId?: string;
+}
+
+export interface MergedSourceInfo {
+  proposalId: string;
+  title: string;
+  originalVotes: number;
+  originalWatchers: number;
+  originalComments: number;
+  mergedAt: string;
 }
 
 export interface VoteRecord {
@@ -83,6 +93,9 @@ export interface Announcement {
   type: AnnouncementType;
   pinned: boolean;
   active: boolean;
+  scope: AnnouncementScope;
+  effectiveAt?: string;
+  expiresAt?: string;
   authorId: string;
   author: User;
   createdAt: string;
@@ -94,6 +107,9 @@ export interface RelatedProposalInfo {
   title: string;
   votes: number;
   status: ProposalStatus;
+  watchers?: number;
+  author?: string;
+  decisionNote?: string;
 }
 
 export interface ChangelogEntryWithProposals extends ChangelogEntry {
@@ -112,6 +128,7 @@ export interface GetProposalsParams {
   userType?: UserType;
   page?: number;
   limit?: number;
+  respectPinned?: boolean;
 }
 
 export interface SubmitProposalRequest {
@@ -162,6 +179,9 @@ export interface CreateAnnouncementRequest {
   content: string;
   type: AnnouncementType;
   pinned?: boolean;
+  scope?: AnnouncementScope;
+  effectiveAt?: string;
+  expiresAt?: string;
 }
 
 export interface UpdateAnnouncementRequest {
@@ -171,6 +191,9 @@ export interface UpdateAnnouncementRequest {
   type?: AnnouncementType;
   pinned?: boolean;
   active?: boolean;
+  scope?: AnnouncementScope;
+  effectiveAt?: string;
+  expiresAt?: string;
 }
 
 export const STATUS_LABELS: Record<ProposalStatus, string> = {

@@ -9,6 +9,7 @@ import {
   Calendar,
   GitMerge,
   ThumbsUp,
+  User,
 } from 'lucide-react';
 import type { ChangelogEntryWithProposals, ProposalStatus } from '../../shared/index.ts';
 import { STATUS_LABELS, STATUS_COLORS } from '../../shared/index.ts';
@@ -151,19 +152,22 @@ export default function Changelog() {
                             </div>
                           </div>
 
-                          {entry.relatedProposalDetails && entry.relatedProposalDetails.length > 0 && (
+          {entry.relatedProposalDetails && entry.relatedProposalDetails.length > 0 && (
                             <div>
-                              <p className="text-xs text-slate-500 mb-3">关联提案：</p>
-                              <div className="space-y-2">
+                              <div className="flex items-center justify-between mb-3">
+                                <p className="text-xs text-slate-500">关联提案（发布时快照）：</p>
+                                <span className="text-[10px] text-slate-600">数据已固定，不随当前状态变化</span>
+                              </div>
+                              <div className="space-y-3">
                                 {entry.relatedProposalDetails.map((proposal) => (
                                   <Link
                                     key={proposal.id}
                                     to={`/proposal/${proposal.id}`}
-                                    className="block p-3 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 transition-all group"
+                                    className="block p-4 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 transition-all group"
                                   >
-                                    <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start justify-between gap-3 mb-3">
                                       <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div className="flex items-center gap-2 mb-1.5">
                                           <span className={cn(
                                             'px-2 py-0.5 rounded text-[10px] font-medium border',
                                             STATUS_COLORS[proposal.status as ProposalStatus]
@@ -178,12 +182,28 @@ export default function Changelog() {
                                           {proposal.title}
                                         </h4>
                                       </div>
-                                      <div className="flex items-center gap-1 text-xs text-slate-400 flex-shrink-0">
-                                        <ThumbsUp size={12} className="text-sky-400" />
-                                        <span className="font-mono">{proposal.votes}</span>
-                                        <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
-                                      </div>
+                                      <ExternalLink size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
                                     </div>
+                                    
+                                    <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
+                                      <span className="flex items-center gap-1">
+                                        <ThumbsUp size={11} className="text-sky-400" />
+                                        <span className="font-mono">{proposal.votes} 票</span>
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <User size={11} className="text-emerald-400" />
+                                        <span>{proposal.author || '未知'}</span>
+                                      </span>
+                                    </div>
+
+                                    {proposal.decisionNote && (
+                                      <div className="pt-3 border-t border-slate-700/30">
+                                        <p className="text-[11px] text-slate-500 mb-1">取舍结论：</p>
+                                        <p className="text-xs text-slate-400 leading-relaxed">
+                                          {proposal.decisionNote}
+                                        </p>
+                                      </div>
+                                    )}
                                   </Link>
                                 ))}
                               </div>

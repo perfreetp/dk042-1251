@@ -26,7 +26,7 @@ export default function Ranking() {
   const fetchRankings = async () => {
     setLoading(true);
     try {
-      const params: any = { sortBy };
+      const params: any = { sortBy, respectPinned: false };
       if (statusFilter !== 'all') {
         params.status = statusFilter;
       }
@@ -89,7 +89,7 @@ export default function Ranking() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3 justify-center mb-10">
+          <div className="flex flex-wrap gap-3 justify-center mb-6">
             <div className="flex bg-slate-800/50 rounded-xl p-1 border border-slate-700/50">
               {sortOptions.map((option) => (
                 <button
@@ -141,6 +141,24 @@ export default function Ranking() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 mb-10 text-sm text-slate-400">
+            <span>当前筛选：</span>
+            <span className="px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              {sortOptions.find(o => o.value === sortBy)?.label}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className="px-2.5 py-1 rounded-md bg-slate-700/50 text-slate-300 border border-slate-600/50">
+              {statusOptions.find(o => o.value === statusFilter)?.label}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              {userOptions.find(o => o.value === userFilter)?.label}
+            </span>
+            <span className="text-slate-500 ml-2">
+              共 {proposals.length} 个提案
+            </span>
           </div>
 
           {loading ? (

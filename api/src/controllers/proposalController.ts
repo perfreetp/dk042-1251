@@ -9,7 +9,7 @@ import {
 import type { GetProposalsParams } from '../../../shared/index.ts';
 
 export const getProposalsHandler = (req: Request, res: Response) => {
-  const { status, sortBy, userType, page, limit } = req.query as GetProposalsParams;
+  const { status, sortBy, userType, page, limit, respectPinned } = req.query;
 
   const result = getProposals({
     status: status as string,
@@ -17,6 +17,7 @@ export const getProposalsHandler = (req: Request, res: Response) => {
     userType: userType as string,
     page: page ? Number(page) : undefined,
     limit: limit ? Number(limit) : undefined,
+    respectPinned: respectPinned === undefined ? undefined : respectPinned === 'true',
   });
 
   res.json({

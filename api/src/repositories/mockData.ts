@@ -9,7 +9,9 @@ import type {
   WatchRecord,
   Announcement,
   AnnouncementType,
+  AnnouncementScope,
   RelatedProposalInfo,
+  MergedSourceInfo,
 } from '../../../shared/index.ts';
 
 export const mockUsers: User[] = [
@@ -129,6 +131,24 @@ export const mockProposals: Proposal[] = [
     updatedAt: '2026-06-14T20:00:00Z',
     pinned: true,
     votingCycleId: 'vc1',
+    mergedFrom: [
+      {
+        proposalId: 'p8',
+        title: '可视化调试器 DevTools',
+        originalVotes: 45,
+        originalWatchers: 23,
+        originalComments: 2,
+        mergedAt: '2026-06-12T10:00:00Z',
+      },
+      {
+        proposalId: 'p9',
+        title: '插件脚手架工具',
+        originalVotes: 32,
+        originalWatchers: 18,
+        originalComments: 1,
+        mergedAt: '2026-06-12T10:00:00Z',
+      },
+    ],
   },
   {
     id: 'p5',
@@ -201,7 +221,7 @@ export const mockProposals: Proposal[] = [
       '组件层级分析',
     ],
     estimatedWork: '6-9 人周',
-    status: 'planning',
+    status: 'rejected',
     votes: 98,
     recentVotes: 22,
     watchers: 45,
@@ -209,7 +229,29 @@ export const mockProposals: Proposal[] = [
     author: mockUsers[3],
     comments: [],
     createdAt: '2026-06-12T10:00:00Z',
-    updatedAt: '2026-06-14T18:00:00Z',
+    updatedAt: '2026-06-12T10:00:00Z',
+    mergedTo: 'p4',
+  },
+  {
+    id: 'p9',
+    title: '插件脚手架工具',
+    description: '提供一键生成插件项目模板的工具，包含示例代码、构建配置和发布流程。',
+    useCases: [
+      '快速创建插件项目',
+      '统一插件开发规范',
+      '简化发布流程',
+    ],
+    estimatedWork: '2-3 人周',
+    status: 'rejected',
+    votes: 67,
+    recentVotes: 8,
+    watchers: 34,
+    authorId: 'u2',
+    author: mockUsers[1],
+    comments: [],
+    createdAt: '2026-06-08T14:00:00Z',
+    updatedAt: '2026-06-12T10:00:00Z',
+    mergedTo: 'p4',
   },
 ];
 
@@ -224,16 +266,36 @@ export const mockWatches: WatchRecord[] = [
   { id: 'w2', proposalId: 'p2', userId: 'u3', createdAt: '2026-05-28T15:00:00Z' },
 ];
 
-export const mockChangelogs: ChangelogEntry[] = [
+export const mockChangelogs: ChangelogEntryWithProposals[] = [
   {
     id: 'c1',
     version: 'v2.4.0',
     title: '零配置项目脚手架正式发布',
     description: '经过两个月的开发和社区测试，零配置项目脚手架功能正式上线。支持 React、Vue、Node.js 等多种技术栈的快速初始化。',
-    decisions: '我们决定优先实现此功能，因为社区投票中获得了最高支持（478 票）。相比 SSR 优化（89 票），脚手架对新手用户的入门体验改进更为直接。',
+    decisions: '我们决定优先实现此功能，因为社区投票中获得了最高支持。相比 SSR 优化，脚手架对新手用户的入门体验改进更为直接。',
     relatedProposals: ['p5'],
     status: 'completed',
     releasedAt: '2026-06-05T14:00:00Z',
+    relatedProposalDetails: [
+      {
+        id: 'p5',
+        title: '零配置项目脚手架',
+        votes: 478,
+        status: 'completed',
+        watchers: 156,
+        author: '李贡献',
+        decisionNote: '高票优先实现，已完整落地',
+      },
+      {
+        id: 'p6',
+        title: '服务端渲染 (SSR) 性能优化',
+        votes: 89,
+        status: 'rejected',
+        watchers: 34,
+        author: '王开发者',
+        decisionNote: '优先级较低，暂不纳入当前版本',
+      },
+    ],
   },
   {
     id: 'c2',
@@ -244,6 +306,26 @@ export const mockChangelogs: ChangelogEntry[] = [
     relatedProposals: ['p3', 'p4'],
     status: 'partial',
     releasedAt: '2026-06-01T10:00:00Z',
+    relatedProposalDetails: [
+      {
+        id: 'p3',
+        title: '内置国际化 (i18n) 支持',
+        votes: 312,
+        status: 'developing',
+        watchers: 124,
+        author: '李贡献',
+        decisionNote: '核心框架已完成，进入 Beta 测试',
+      },
+      {
+        id: 'p4',
+        title: '插件市场生态系统',
+        votes: 98,
+        status: 'planning',
+        watchers: 67,
+        author: '赵测试',
+        decisionNote: '规划中，待 i18n 完成后优先启动',
+      },
+    ],
   },
   {
     id: 'c3',
@@ -254,6 +336,17 @@ export const mockChangelogs: ChangelogEntry[] = [
     relatedProposals: ['p2'],
     status: 'completed',
     releasedAt: '2026-05-15T09:00:00Z',
+    relatedProposalDetails: [
+      {
+        id: 'p2',
+        title: '引入 WebAssembly 提升性能瓶颈模块',
+        votes: 189,
+        status: 'voting',
+        watchers: 67,
+        author: '王开发者',
+        decisionNote: '长期方案持续评估中，本次先用 JS 优化快速见效',
+      },
+    ],
   },
 ];
 
@@ -284,6 +377,9 @@ export const mockAnnouncements: Announcement[] = [
     type: 'important',
     pinned: true,
     active: true,
+    scope: 'all',
+    effectiveAt: '2026-06-01T00:00:00Z',
+    expiresAt: '2026-06-30T23:59:59Z',
     authorId: 'u1',
     author: mockUsers[0],
     createdAt: '2026-06-01T00:00:00Z',
@@ -296,6 +392,7 @@ export const mockAnnouncements: Announcement[] = [
     type: 'info',
     pinned: true,
     active: true,
+    scope: 'all',
     authorId: 'u1',
     author: mockUsers[0],
     createdAt: '2026-05-20T10:00:00Z',
@@ -308,6 +405,7 @@ export const mockAnnouncements: Announcement[] = [
     type: 'warning',
     pinned: false,
     active: true,
+    scope: 'home',
     authorId: 'u1',
     author: mockUsers[0],
     createdAt: '2026-05-15T09:00:00Z',
@@ -320,6 +418,9 @@ export const mockAnnouncements: Announcement[] = [
     type: 'success',
     pinned: false,
     active: false,
+    scope: 'home',
+    effectiveAt: '2026-04-10T00:00:00Z',
+    expiresAt: '2026-05-01T00:00:00Z',
     authorId: 'u1',
     author: mockUsers[0],
     createdAt: '2026-04-10T00:00:00Z',
@@ -332,6 +433,7 @@ let votes = [...mockVotes];
 let watches = [...mockWatches];
 let comments = [...mockComments];
 let announcements = [...mockAnnouncements];
+let changelogs = [...mockChangelogs];
 
 export const getProposals = (params?: {
   status?: string;
@@ -339,6 +441,7 @@ export const getProposals = (params?: {
   userType?: string;
   page?: number;
   limit?: number;
+  respectPinned?: boolean;
 }) => {
   let result = [...proposals];
 
@@ -364,9 +467,11 @@ export const getProposals = (params?: {
     }
   }
 
-  const pinned = result.filter(p => p.pinned);
-  const others = result.filter(p => !p.pinned);
-  result = [...pinned, ...others];
+  if (params?.respectPinned !== false) {
+    const pinned = result.filter(p => p.pinned);
+    const others = result.filter(p => !p.pinned);
+    result = [...pinned, ...others];
+  }
 
   const total = result.length;
 
@@ -382,26 +487,22 @@ export const getProposalById = (id: string) => proposals.find(p => p.id === id);
 export const getUsers = () => mockUsers;
 export const getUserById = (id: string) => mockUsers.find(u => u.id === id);
 export const getChangelogs = (): ChangelogEntryWithProposals[] => {
-  return mockChangelogs.map(entry => ({
-    ...entry,
-    relatedProposalDetails: entry.relatedProposals
-      .map(id => {
-        const proposal = proposals.find(p => p.id === id);
-        if (!proposal) return null;
-        return {
-          id: proposal.id,
-          title: proposal.title,
-          votes: proposal.votes,
-          status: proposal.status,
-        } as RelatedProposalInfo;
-      })
-      .filter(Boolean) as RelatedProposalInfo[],
-  }));
+  return [...changelogs].sort((a, b) => new Date(b.releasedAt).getTime() - new Date(a.releasedAt).getTime());
 };
 export const getVotingCycles = () => mockVotingCycles;
 
-export const getActiveAnnouncements = () => {
-  const active = announcements.filter(a => a.active);
+export const getActiveAnnouncements = (scope?: 'home' | 'proposal_detail') => {
+  const now = new Date();
+  
+  const isCurrentlyEffective = (a: Announcement) => {
+    if (!a.active) return false;
+    if (scope && a.scope !== 'all' && a.scope !== scope) return false;
+    if (a.effectiveAt && new Date(a.effectiveAt) > now) return false;
+    if (a.expiresAt && new Date(a.expiresAt) < now) return false;
+    return true;
+  };
+
+  const active = announcements.filter(isCurrentlyEffective);
   const pinned = active.filter(a => a.pinned);
   const others = active.filter(a => !a.pinned);
   return [...pinned.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
@@ -419,6 +520,9 @@ export const createAnnouncement = (data: {
   content: string;
   type: AnnouncementType;
   pinned?: boolean;
+  scope?: AnnouncementScope;
+  effectiveAt?: string;
+  expiresAt?: string;
   authorId: string;
 }) => {
   const author = mockUsers.find(u => u.id === data.authorId);
@@ -431,6 +535,9 @@ export const createAnnouncement = (data: {
     type: data.type,
     pinned: data.pinned || false,
     active: true,
+    scope: data.scope || 'all',
+    effectiveAt: data.effectiveAt,
+    expiresAt: data.expiresAt,
     authorId: data.authorId,
     author,
     createdAt: new Date().toISOString(),
@@ -447,6 +554,9 @@ export const updateAnnouncement = (id: string, data: {
   type?: AnnouncementType;
   pinned?: boolean;
   active?: boolean;
+  scope?: AnnouncementScope;
+  effectiveAt?: string;
+  expiresAt?: string;
 }) => {
   const announcement = announcements.find(a => a.id === id);
   if (!announcement) return null;
@@ -456,6 +566,9 @@ export const updateAnnouncement = (id: string, data: {
   if (data.type !== undefined) announcement.type = data.type;
   if (data.pinned !== undefined) announcement.pinned = data.pinned;
   if (data.active !== undefined) announcement.active = data.active;
+  if (data.scope !== undefined) announcement.scope = data.scope;
+  if (data.effectiveAt !== undefined) announcement.effectiveAt = data.effectiveAt;
+  if (data.expiresAt !== undefined) announcement.expiresAt = data.expiresAt;
   announcement.updatedAt = new Date().toISOString();
 
   return announcement;
@@ -667,13 +780,23 @@ export const mergeProposals = (targetId: string, sourceIds: string[]) => {
   }));
   target.comments = [...target.comments, ...mergedComments];
 
-  target.mergedFrom = [...(target.mergedFrom || []), ...validSourceIds];
-  target.updatedAt = new Date().toISOString();
+  const mergedAt = new Date().toISOString();
+  const mergedFromInfos: MergedSourceInfo[] = sources.map(s => ({
+    proposalId: s.id,
+    title: s.title,
+    originalVotes: s.votes,
+    originalWatchers: s.watchers,
+    originalComments: s.comments.length,
+    mergedAt,
+  }));
+
+  target.mergedFrom = [...(target.mergedFrom || []), ...mergedFromInfos];
+  target.updatedAt = mergedAt;
 
   sources.forEach(s => {
     s.status = 'rejected';
     s.mergedTo = targetId;
-    s.updatedAt = new Date().toISOString();
+    s.updatedAt = mergedAt;
   });
 
   return {

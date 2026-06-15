@@ -8,6 +8,7 @@ import type {
   VotingCycle,
   Announcement,
   AnnouncementType,
+  AnnouncementScope,
 } from '../../shared/index.ts';
 import { api } from '../services/api.ts';
 
@@ -30,10 +31,28 @@ interface AppState {
   fetchProposal: (id: string) => Promise<void>;
   fetchChangelog: () => Promise<void>;
   fetchVotingCycles: () => Promise<void>;
-  fetchAnnouncements: () => Promise<void>;
+  fetchAnnouncements: (scope?: 'home' | 'proposal_detail') => Promise<void>;
   fetchAdminAnnouncements: () => Promise<void>;
-  createAnnouncement: (data: { title: string; content: string; type: AnnouncementType; pinned?: boolean }) => Promise<Announcement | null>;
-  updateAnnouncement: (data: { id: string; title?: string; content?: string; type?: AnnouncementType; pinned?: boolean; active?: boolean }) => Promise<Announcement | null>;
+  createAnnouncement: (data: { 
+    title: string; 
+    content: string; 
+    type: AnnouncementType; 
+    pinned?: boolean;
+    scope?: AnnouncementScope;
+    effectiveAt?: string;
+    expiresAt?: string;
+  }) => Promise<Announcement | null>;
+  updateAnnouncement: (data: { 
+    id: string; 
+    title?: string; 
+    content?: string; 
+    type?: AnnouncementType; 
+    pinned?: boolean; 
+    active?: boolean;
+    scope?: AnnouncementScope;
+    effectiveAt?: string;
+    expiresAt?: string;
+  }) => Promise<Announcement | null>;
   vote: (proposalId: string) => Promise<boolean>;
   unvote: (proposalId: string) => Promise<boolean>;
   toggleWatch: (proposalId: string) => Promise<boolean>;
@@ -290,9 +309,9 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  fetchAnnouncements: async () => {
+  fetchAnnouncements: async (scope) => {
     try {
-      const response = await api.getActiveAnnouncements();
+      const response = await api.getActiveAnnouncements(scope);
       if (response.success) {
         set({ announcements: response.data });
       }
