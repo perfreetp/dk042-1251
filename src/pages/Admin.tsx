@@ -23,6 +23,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Edit,
+  Eye,
+  LayoutGrid,
 } from 'lucide-react';
 import type { Proposal, ProposalStatus, VotingCycle, Announcement, AnnouncementType } from '../../shared/index.ts';
 import { api } from '../services/api.ts';
@@ -41,6 +43,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [selectedProposals, setSelectedProposals] = useState<string[]>([]);
   const [mergeTarget, setMergeTarget] = useState<string>('');
+  const [mergeReason, setMergeReason] = useState<string>('');
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
@@ -124,9 +127,10 @@ export default function Admin() {
   const handleMergeProposals = async () => {
     if (!mergeTarget || selectedProposals.length === 0) return;
     try {
-      await api.mergeProposals(mergeTarget, selectedProposals);
+      await api.mergeProposals(mergeTarget, selectedProposals, mergeReason || undefined);
       setSelectedProposals([]);
       setMergeTarget('');
+      setMergeReason('');
       setShowMergeModal(false);
       loadData();
     } catch (err) {
@@ -539,6 +543,110 @@ export default function Admin() {
                         <span className="text-sm text-slate-400">置顶公告</span>
                       </label>
                     </div>
+
+                    <div className="pt-4 border-t border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Eye size={14} className="text-sky-400" />
+                        <span className="text-sm font-medium text-slate-300">发布预览</span>
+                        <span className="text-[10px] text-slate-500">（保存后，用户在以下位置看到）</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          {(['home', 'proposal_detail'] as const).map((scope) => {
+                            const willShow = newAnnouncement.scope === 'all' || newAnnouncement.scope === scope;
+                            return (
+                              <div
+                                key={scope}
+                                className={cn(
+                                  'px-3 py-1 rounded-lg text-xs font-medium border flex items-center gap-1.5',
+                                  willShow
+                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                    : 'bg-slate-700/30 border-slate-600/50 text-slate-500 line-through'
+                                )}
+                              >
+                                {willShow ? <Check size={10} /> : <X size={10} />}
+                                {scope === 'home' ? '首页顶部' : '提案详情页顶部'}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {(() => {
+                          const now = Date.now();
+                          const eff = newAnnouncement.effectiveAt ? new Date(newAnnouncement.effectiveAt).getTime() : null;
+                          const exp = newAnnouncement.expiresAt ? new Date(newAnnouncement.expiresAt).getTime() : null;
+                          const isFuture = eff !== null && eff > now;
+                          const isExpired = exp !== null && exp < now;
+                          const isActiveNow = !isFuture && !isExpired;
+
+                          let statusText = '立即生效';
+                          let statusCls = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
+                          if (isFuture) {
+                            statusText = `未生效（${new Date(eff!).toLocaleString('zh-CN')} 生效）`;
+                            statusCls = 'bg-amber-500/10 border-amber-500/30 text-amber-400';
+                          } else if (isExpired) {
+                            statusText = `已过期（${new Date(exp!).toLocaleString('zh-CN')} 失效）`;
+                            statusCls = 'bg-slate-600/50 border-slate-500/30 text-slate-400';
+                          } else if (eff !== null && exp !== null) {
+                            statusText = `生效中（${new Date(eff).toLocaleDateString('zh-CN')} ~ ${new Date(exp).toLocaleDateString('zh-CN')}）`;
+                            statusCls = 'bg-sky-500/10 border-sky-500/30 text-sky-400';
+                          } else if (exp !== null) {
+                            statusText = `生效中（${new Date(exp).toLocaleDateString('zh-CN')} 失效）`;
+                            statusCls = 'bg-sky-500/10 border-sky-500/30 text-sky-400';
+                          }
+
+                          return (
+                            <div className={cn('px-3 py-1.5 rounded-lg text-xs border inline-flex items-center gap-1.5', statusCls)}>
+                              <Calendar size={11} />
+                              {statusText}
+                            </div>
+                          );
+                        })()}
+
+                        <div className="relative mt-2">
+                          {(() => {
+                            const typeConfig = {
+                              info: { icon: Info, color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/30' },
+                              warning: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
+                              success: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+                              important: { icon: Star, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+                            }[newAnnouncement.type];
+                            const TypeIcon = typeConfig.icon;
+                            return (
+                              <div className={cn('rounded-2xl border p-5 bg-slate-800/70', typeConfig.border)}>
+                                <div className="text-[10px] text-slate-500 mb-2 flex items-center gap-1">
+                                  <LayoutGrid size={10} />
+                                  模拟位置：{newAnnouncement.scope === 'all' ? '首页 / 详情页顶部' : newAnnouncement.scope === 'home' ? '首页顶部横幅' : '提案详情页顶部横幅'}
+                                </div>
+                                <div className="flex items-start gap-3">
+                                  <div className={cn('p-2 rounded-xl flex-shrink-0', typeConfig.bg)}>
+                                    <TypeIcon size={20} className={typeConfig.color} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <h4 className="font-semibold text-white text-sm">
+                                        {newAnnouncement.title || '（公告标题）'}
+                                      </h4>
+                                      {newAnnouncement.pinned && (
+                                        <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded flex items-center gap-1">
+                                          <Pin size={10} />
+                                          置顶
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-slate-400 text-xs leading-relaxed">
+                                      {newAnnouncement.content || '（公告内容将显示在这里）'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex gap-3">
                       <button
                         type="submit"
@@ -839,7 +947,7 @@ export default function Admin() {
 
       {showMergeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 w-full max-w-md mx-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-white mb-2">合并提案</h3>
             <p className="text-slate-400 text-sm mb-4">
               将选中的 {selectedProposals.length} 个提案合并到目标提案中
@@ -859,12 +967,24 @@ export default function Admin() {
               </select>
             </div>
 
+            <div className="mb-5">
+              <label className="block text-sm text-slate-400 mb-2">合并原因 <span className="text-slate-600">(可选，会记录在审计日志中)</span></label>
+              <textarea
+                value={mergeReason}
+                onChange={(e) => setMergeReason(e.target.value)}
+                rows={3}
+                placeholder="简要说明为什么要合并这些提案，后续历史追溯用..."
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+              />
+            </div>
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowMergeModal(false);
                   setSelectedProposals([]);
                   setMergeTarget('');
+                  setMergeReason('');
                 }}
                 className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700 transition-colors"
               >

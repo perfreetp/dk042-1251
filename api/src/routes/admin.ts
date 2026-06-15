@@ -10,6 +10,7 @@ import {
   getAnnouncementsHandler,
   createAnnouncementHandler,
   updateAnnouncementHandler,
+  getMergeAuditsHandler,
 } from '../controllers/adminController.ts';
 import { requireMaintainer } from '../middleware/auth.ts';
 
@@ -19,6 +20,7 @@ router.get('/stats', requireMaintainer, getStatsHandler);
 router.patch('/proposal/status', requireMaintainer, updateStatusHandler);
 router.patch('/proposal/pin', requireMaintainer, pinProposalHandler);
 router.post('/proposal/merge', requireMaintainer, mergeProposalsHandler);
+router.get('/proposal/merge-audits', requireMaintainer, getMergeAuditsHandler);
 router.post('/cycle', requireMaintainer, createCycleHandler);
 router.get('/cycles', requireMaintainer, getCyclesHandler);
 router.post('/changelog', requireMaintainer, createChangelogHandler);

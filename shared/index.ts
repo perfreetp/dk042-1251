@@ -50,6 +50,28 @@ export interface MergedSourceInfo {
   originalWatchers: number;
   originalComments: number;
   mergedAt: string;
+  mergedBy?: string;
+  mergedByName?: string;
+  mergeReason?: string;
+  targetVotesBefore?: number;
+  targetVotesAfter?: number;
+}
+
+export interface MergeAuditRecord {
+  id: string;
+  targetProposalId: string;
+  targetProposalTitle: string;
+  sourceProposalId: string;
+  sourceProposalTitle: string;
+  sourceOriginalVotes: number;
+  sourceOriginalWatchers: number;
+  sourceOriginalComments: number;
+  mergedBy: string;
+  mergedByName: string;
+  mergeReason: string;
+  targetVotesBefore: number;
+  targetVotesAfter: number;
+  mergedAt: string;
 }
 
 export interface VoteRecord {
@@ -151,6 +173,7 @@ export interface CommentRequest {
 export interface MergeProposalsRequest {
   targetProposalId: string;
   sourceProposalIds: string[];
+  mergeReason?: string;
 }
 
 export interface UpdateProposalStatusRequest {

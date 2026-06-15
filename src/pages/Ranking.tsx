@@ -7,8 +7,12 @@ import {
   Medal,
   Crown,
   Award,
+  GitMerge,
+  AlertTriangle,
 } from 'lucide-react';
-import type { SortBy, Proposal, UserType } from '../../shared/index.ts';
+import { Link } from 'react-router-dom';
+import type { SortBy, Proposal, UserType, ProposalStatus } from '../../shared/index.ts';
+import { STATUS_LABELS, STATUS_COLORS } from '../../shared/index.ts';
 import { ProposalCard } from '../components/ProposalCard.tsx';
 import { api } from '../services/api.ts';
 import { cn } from '../lib/utils.ts';
@@ -16,12 +20,33 @@ import { cn } from '../lib/utils.ts';
 type RankingFilter = 'all' | 'voting' | 'developing';
 type UserFilter = 'all' | 'maintainer' | 'user';
 
+const STORAGE_KEY = 'ranking_filters_v1';
+
+const loadPersistedFilters = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
 export default function Ranking() {
+  const persisted = loadPersistedFilters();
+
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<SortBy>('votes');
-  const [statusFilter, setStatusFilter] = useState<RankingFilter>('all');
-  const [userFilter, setUserFilter] = useState<UserFilter>('all');
+  const [sortBy, setSortBy] = useState<SortBy>(persisted?.sortBy || 'votes');
+  const [statusFilter, setStatusFilter] = useState<RankingFilter>(persisted?.statusFilter || 'all');
+  const [userFilter, setUserFilter] = useState<UserFilter>(persisted?.userFilter || 'all');
+  const [prevStatuses, setPrevStatuses] = useState<Record<string, ProposalStatus>>({});
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sortBy, statusFilter, userFilter }));
+  }, [sortBy, statusFilter, userFilter]);
 
   const fetchRankings = async () => {
     setLoading(true);
@@ -34,7 +59,17 @@ export default function Ranking() {
         params.userType = userFilter;
       }
       const response = await api.getProposals(params);
-      setProposals(response.data.proposals);
+      const newProposals = response.data.proposals;
+
+      const newStatuses: Record<string, ProposalStatus> = {};
+      newProposals.forEach(p => {
+        newStatuses[p.id] = p.status;
+      });
+      setProposals(newProposals);
+      setPrevStatuses(prev => {
+        const prevSnapshot = prev;
+        return { ...prevSnapshot };
+      });
     } catch (err) {
       console.error('Failed to fetch rankings:', err);
     }
@@ -172,10 +207,11 @@ export default function Ranking() {
               {topThree.length > 0 && (
                 <div className="grid md:grid-cols-3 gap-6 mb-8">
                   {topThree.map((proposal, index) => (
-                    <div
+                    <Link
                       key={proposal.id}
+                      to={`/proposal/${proposal.id}`}
                       className={cn(
-                        'relative bg-slate-800/50 rounded-2xl border p-6 transition-all hover:-translate-y-1',
+                        'relative bg-slate-800/50 rounded-2xl border p-6 transition-all hover:-translate-y-1 block group',
                         index === 0
                           ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-slate-800/50 to-transparent md:scale-105'
                           : index === 1
@@ -202,6 +238,21 @@ export default function Ranking() {
                         </div>
                       </div>
 
+                      <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+                        {proposal.mergedTo && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded border border-amber-500/20">
+                            <GitMerge size={10} />
+                            已合并
+                          </span>
+                        )}
+                        <span className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-medium border',
+                          STATUS_COLORS[proposal.status]
+                        )}>
+                          {STATUS_LABELS[proposal.status]}
+                        </span>
+                      </div>
+
                       <div className="text-center mt-6 mb-4">
                         <div className="text-4xl font-bold text-white font-mono mb-1">
                           {proposal.votes}
@@ -215,7 +266,7 @@ export default function Ranking() {
                         )}
                       </div>
 
-                      <h3 className="text-lg font-semibold text-white text-center mb-2 line-clamp-2">
+                      <h3 className="text-lg font-semibold text-white text-center mb-2 line-clamp-2 group-hover:text-sky-400 transition-colors">
                         {proposal.title}
                       </h3>
                       <p className="text-sm text-slate-400 text-center line-clamp-2 mb-4">
@@ -230,7 +281,7 @@ export default function Ranking() {
                         />
                         <span>{proposal.author.name}</span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -238,17 +289,41 @@ export default function Ranking() {
               {rest.length > 0 && (
                 <div className="space-y-3">
                   {rest.map((proposal, index) => (
-                    <div
+                    <Link
                       key={proposal.id}
-                      className="flex items-center gap-4 bg-slate-800/30 hover:bg-slate-800/50 rounded-xl p-4 border border-slate-700/30 transition-all"
+                      to={`/proposal/${proposal.id}`}
+                      className={cn(
+                        'flex items-center gap-4 bg-slate-800/30 hover:bg-slate-800/50 rounded-xl p-4 border border-slate-700/30 transition-all group',
+                        proposal.mergedTo && 'opacity-70'
+                      )}
                     >
                       <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center text-slate-400 font-bold font-mono text-lg flex-shrink-0">
                         {index + 4}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-medium truncate">
-                          {proposal.title}
-                        </h4>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h4 className="text-white font-medium truncate group-hover:text-sky-400 transition-colors">
+                            {proposal.title}
+                          </h4>
+                          <span className={cn(
+                            'px-1.5 py-0.5 rounded text-[10px] font-medium border flex-shrink-0',
+                            STATUS_COLORS[proposal.status]
+                          )}>
+                            {STATUS_LABELS[proposal.status]}
+                          </span>
+                          {proposal.mergedTo && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-medium rounded border border-amber-500/20 flex-shrink-0">
+                              <GitMerge size={10} />
+                              已合并
+                            </span>
+                          )}
+                          {prevStatuses[proposal.id] && prevStatuses[proposal.id] !== proposal.status && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-medium rounded border border-emerald-500/20 flex-shrink-0">
+                              <AlertTriangle size={10} />
+                              状态变化
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-3 text-sm text-slate-400 mt-1">
                           <span className="flex items-center gap-1">
                             <img
@@ -264,6 +339,11 @@ export default function Ranking() {
                               +{proposal.recentVotes}
                             </span>
                           )}
+                          {proposal.mergedTo && (
+                            <span className="text-amber-400 flex items-center gap-1 text-xs">
+                              去向: {proposals.find(p => p.id === proposal.mergedTo)?.title || proposal.mergedTo}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -272,7 +352,7 @@ export default function Ranking() {
                         </div>
                         <div className="text-xs text-slate-500">票</div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}

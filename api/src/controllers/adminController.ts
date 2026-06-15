@@ -11,6 +11,7 @@ import {
   createChangelog,
   createAnnouncement,
   updateAnnouncement,
+  getMergeAudits,
 } from '../repositories/mockData.ts';
 
 export const getStatsHandler = (_req: Request, res: Response) => {
@@ -92,7 +93,7 @@ export const pinProposalHandler = (req: Request, res: Response) => {
 };
 
 export const mergeProposalsHandler = (req: Request, res: Response) => {
-  const { targetProposalId, sourceProposalIds } = req.body;
+  const { targetProposalId, sourceProposalIds, mergeReason } = req.body;
 
   if (!targetProposalId || !sourceProposalIds || sourceProposalIds.length === 0) {
     return res.status(400).json({
@@ -102,7 +103,11 @@ export const mergeProposalsHandler = (req: Request, res: Response) => {
     });
   }
 
-  const result = mergeProposals(targetProposalId, sourceProposalIds);
+  const result = mergeProposals(targetProposalId, sourceProposalIds, {
+    mergeReason,
+    mergedBy: req.user?.id,
+    mergedByName: req.user?.name,
+  });
 
   if (!result) {
     return res.status(404).json({
@@ -116,6 +121,16 @@ export const mergeProposalsHandler = (req: Request, res: Response) => {
     success: true,
     message: `合并成功，新增 ${result.stats.newVotes} 票、${result.stats.newWatches} 个关注、${result.stats.newComments} 条评论`,
     data: result,
+  });
+};
+
+export const getMergeAuditsHandler = (req: Request, res: Response) => {
+  const { proposalId } = req.query;
+  const audits = getMergeAudits(proposalId as string);
+  res.json({
+    success: true,
+    message: '获取成功',
+    data: audits,
   });
 };
 
@@ -183,7 +198,7 @@ export const getAnnouncementsHandler = (_req: Request, res: Response) => {
 };
 
 export const createAnnouncementHandler = (req: Request, res: Response) => {
-  const { title, content, type, pinned } = req.body;
+  const { title, content, type, pinned, scope, effectiveAt, expiresAt } = req.body;
   const userId = req.user?.id;
 
   if (!userId || req.user?.type !== 'maintainer') {
@@ -207,6 +222,9 @@ export const createAnnouncementHandler = (req: Request, res: Response) => {
     content,
     type,
     pinned: pinned || false,
+    scope: scope || 'all',
+    effectiveAt,
+    expiresAt,
     authorId: userId,
   });
 
@@ -226,7 +244,7 @@ export const createAnnouncementHandler = (req: Request, res: Response) => {
 };
 
 export const updateAnnouncementHandler = (req: Request, res: Response) => {
-  const { id, title, content, type, pinned, active } = req.body;
+  const { id, title, content, type, pinned, active, scope, effectiveAt, expiresAt } = req.body;
 
   if (!id) {
     return res.status(400).json({
@@ -242,6 +260,9 @@ export const updateAnnouncementHandler = (req: Request, res: Response) => {
     type,
     pinned,
     active,
+    scope,
+    effectiveAt,
+    expiresAt,
   });
 
   if (!announcement) {

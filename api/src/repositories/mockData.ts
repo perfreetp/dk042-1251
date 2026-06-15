@@ -12,6 +12,7 @@ import type {
   AnnouncementScope,
   RelatedProposalInfo,
   MergedSourceInfo,
+  MergeAuditRecord,
 } from '../../../shared/index.ts';
 
 export const mockUsers: User[] = [
@@ -139,6 +140,11 @@ export const mockProposals: Proposal[] = [
         originalWatchers: 23,
         originalComments: 2,
         mergedAt: '2026-06-12T10:00:00Z',
+        mergedBy: 'u1',
+        mergedByName: '张开源',
+        mergeReason: '与插件市场功能高度重叠，调试器可作为插件市场的核心插件统一规划',
+        targetVotesBefore: 68,
+        targetVotesAfter: 113,
       },
       {
         proposalId: 'p9',
@@ -146,7 +152,12 @@ export const mockProposals: Proposal[] = [
         originalVotes: 32,
         originalWatchers: 18,
         originalComments: 1,
-        mergedAt: '2026-06-12T10:00:00Z',
+        mergedAt: '2026-06-13T15:30:00Z',
+        mergedBy: 'u1',
+        mergedByName: '张开源',
+        mergeReason: '脚手架是插件生态的重要组成部分，纳入插件市场后可降低插件开发门槛',
+        targetVotesBefore: 113,
+        targetVotesAfter: 145,
       },
     ],
   },
@@ -720,7 +731,55 @@ export const pinProposal = (proposalId: string, pinned: boolean) => {
   return proposal;
 };
 
-export const mergeProposals = (targetId: string, sourceIds: string[]) => {
+let mergeAudits: MergeAuditRecord[] = [
+  {
+    id: 'ma1',
+    targetProposalId: 'p4',
+    targetProposalTitle: '插件市场生态系统',
+    sourceProposalId: 'p8',
+    sourceProposalTitle: '可视化调试器 DevTools',
+    sourceOriginalVotes: 45,
+    sourceOriginalWatchers: 23,
+    sourceOriginalComments: 2,
+    mergedBy: 'u1',
+    mergedByName: '张开源',
+    mergeReason: '与插件市场功能高度重叠，调试器可作为插件市场的核心插件统一规划',
+    targetVotesBefore: 68,
+    targetVotesAfter: 113,
+    mergedAt: '2026-06-12T10:00:00Z',
+  },
+  {
+    id: 'ma2',
+    targetProposalId: 'p4',
+    targetProposalTitle: '插件市场生态系统',
+    sourceProposalId: 'p9',
+    sourceProposalTitle: '插件脚手架工具',
+    sourceOriginalVotes: 32,
+    sourceOriginalWatchers: 18,
+    sourceOriginalComments: 1,
+    mergedBy: 'u1',
+    mergedByName: '张开源',
+    mergeReason: '脚手架是插件生态的重要组成部分，纳入插件市场后可降低插件开发门槛',
+    targetVotesBefore: 113,
+    targetVotesAfter: 145,
+    mergedAt: '2026-06-13T15:30:00Z',
+  },
+];
+
+export const getMergeAudits = (proposalId?: string) => {
+  if (proposalId) {
+    return mergeAudits.filter(
+      a => a.targetProposalId === proposalId || a.sourceProposalId === proposalId
+    );
+  }
+  return mergeAudits;
+};
+
+export const mergeProposals = (
+  targetId: string,
+  sourceIds: string[],
+  options?: { mergeReason?: string; mergedBy?: string; mergedByName?: string }
+) => {
   const target = proposals.find(p => p.id === targetId);
   if (!target) return null;
 
@@ -750,6 +809,8 @@ export const mergeProposals = (targetId: string, sourceIds: string[]) => {
 
   const newVotes = [...sourceVoteUserIds].filter(uid => !targetVoteUserIds.has(uid));
   const newWatches = [...sourceWatchUserIds].filter(uid => !targetWatchUserIds.has(uid));
+
+  const targetVotesBefore = target.votes;
 
   newVotes.forEach(userId => {
     const newVote: VoteRecord = {
@@ -781,6 +842,8 @@ export const mergeProposals = (targetId: string, sourceIds: string[]) => {
   target.comments = [...target.comments, ...mergedComments];
 
   const mergedAt = new Date().toISOString();
+  const targetVotesAfter = target.votes;
+
   const mergedFromInfos: MergedSourceInfo[] = sources.map(s => ({
     proposalId: s.id,
     title: s.title,
@@ -788,16 +851,39 @@ export const mergeProposals = (targetId: string, sourceIds: string[]) => {
     originalWatchers: s.watchers,
     originalComments: s.comments.length,
     mergedAt,
+    mergedBy: options?.mergedBy,
+    mergedByName: options?.mergedByName,
+    mergeReason: options?.mergeReason,
+    targetVotesBefore,
+    targetVotesAfter,
   }));
 
-  target.mergedFrom = [...(target.mergedFrom || []), ...mergedFromInfos];
-  target.updatedAt = mergedAt;
-
   sources.forEach(s => {
+    const auditRecord: MergeAuditRecord = {
+      id: `ma${Date.now()}-${s.id}`,
+      targetProposalId: targetId,
+      targetProposalTitle: target.title,
+      sourceProposalId: s.id,
+      sourceProposalTitle: s.title,
+      sourceOriginalVotes: s.votes,
+      sourceOriginalWatchers: s.watchers,
+      sourceOriginalComments: s.comments.length,
+      mergedBy: options?.mergedBy || 'u1',
+      mergedByName: options?.mergedByName || '维护者',
+      mergeReason: options?.mergeReason || '相似提案合并',
+      targetVotesBefore,
+      targetVotesAfter,
+      mergedAt,
+    };
+    mergeAudits.push(auditRecord);
+
     s.status = 'rejected';
     s.mergedTo = targetId;
     s.updatedAt = mergedAt;
   });
+
+  target.mergedFrom = [...(target.mergedFrom || []), ...mergedFromInfos];
+  target.updatedAt = mergedAt;
 
   return {
     target,

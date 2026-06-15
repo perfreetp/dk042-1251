@@ -13,6 +13,7 @@ import type {
   Announcement,
   AnnouncementType,
   AnnouncementScope,
+  MergeAuditRecord,
 } from '../../shared/index.ts';
 
 const API_BASE = '/api';
@@ -229,13 +230,22 @@ export const api = {
     return handleResponse<ApiResponse<Proposal>>(response);
   },
 
-  mergeProposals: async (targetProposalId: string, sourceProposalIds: string[]) => {
+  mergeProposals: async (targetProposalId: string, sourceProposalIds: string[], mergeReason?: string) => {
     const response = await fetch(`${API_BASE}/admin/proposal/merge`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ targetProposalId, sourceProposalIds }),
+      body: JSON.stringify({ targetProposalId, sourceProposalIds, mergeReason }),
     });
     return handleResponse<ApiResponse<Proposal>>(response);
+  },
+
+  getMergeAudits: async (proposalId?: string) => {
+    const searchParams = new URLSearchParams();
+    if (proposalId) searchParams.set('proposalId', proposalId);
+    const response = await fetch(`${API_BASE}/admin/proposal/merge-audits?${searchParams}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse<ApiResponse<MergeAuditRecord[]>>(response);
   },
 
   createVotingCycle: async (data: { name: string; startDate: string; endDate: string; description: string }) => {

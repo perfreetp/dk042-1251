@@ -246,30 +246,39 @@ export default function ProposalDetail() {
                         </span>
                       </div>
                       <p className="text-sm text-slate-400 mb-4">
-                        以下为合并时的原始数据快照，可清晰追溯各来源贡献
+                        以下为合并时的完整审计记录，可清晰追溯每次合并的处理人、原因和数据变化
                       </p>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {currentProposal.mergedFrom.map((source) => (
-                          <Link
+                          <div
                             key={source.proposalId}
-                            to={`/proposal/${source.proposalId}`}
-                            className="block p-4 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 transition-all group"
+                            className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/30 transition-all"
                           >
                             <div className="flex items-start justify-between gap-4 mb-3">
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
                                   <span className="text-sky-400 text-xs font-mono">{source.proposalId}</span>
                                   <span className="text-xs text-slate-500">
-                                    合并于 {new Date(source.mergedAt).toLocaleDateString('zh-CN')}
+                                    {new Date(source.mergedAt).toLocaleString('zh-CN', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
                                   </span>
                                 </div>
-                                <h4 className="text-sm font-medium text-white truncate group-hover:text-sky-400 transition-colors">
+                                <Link
+                                  to={`/proposal/${source.proposalId}`}
+                                  className="text-sm font-medium text-white truncate hover:text-sky-400 transition-colors inline-flex items-center gap-1 group"
+                                >
                                   {source.title}
-                                </h4>
+                                  <ExternalLink size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </Link>
                               </div>
-                              <ExternalLink size={14} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
                             </div>
-                            <div className="grid grid-cols-3 gap-2 text-xs">
+
+                            <div className="grid grid-cols-3 gap-2 text-xs mb-4 pb-4 border-b border-slate-700/30">
                               <div className="flex items-center gap-1.5 text-slate-400">
                                 <ThumbsUp size={12} className="text-sky-400" />
                                 <span>原始 {source.originalVotes} 票</span>
@@ -283,7 +292,36 @@ export default function ProposalDetail() {
                                 <span>{source.originalComments} 评论</span>
                               </div>
                             </div>
-                          </Link>
+
+                            {source.mergeReason && (
+                              <div className="mb-3">
+                                <p className="text-[11px] text-slate-500 mb-1">合并原因：</p>
+                                <p className="text-xs text-slate-300 leading-relaxed bg-slate-800/30 px-3 py-2 rounded-md">
+                                  {source.mergeReason}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                              {source.mergedByName && (
+                                <div className="flex items-center gap-1.5 text-slate-400">
+                                  <User size={12} className="text-sky-400" />
+                                  <span>处理人：{source.mergedByName}</span>
+                                </div>
+                              )}
+                              {source.targetVotesBefore !== undefined && source.targetVotesAfter !== undefined && (
+                                <div className="flex items-center gap-1.5 text-slate-400">
+                                  <TrendingUp size={12} className="text-emerald-400" />
+                                  <span>
+                                    票数变化：{source.targetVotesBefore} → {source.targetVotesAfter}
+                                    <span className="text-emerald-400 ml-1">
+                                      (+{source.targetVotesAfter - source.targetVotesBefore})
+                                    </span>
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
